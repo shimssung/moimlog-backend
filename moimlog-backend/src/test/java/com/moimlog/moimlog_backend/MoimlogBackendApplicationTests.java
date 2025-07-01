@@ -10,4 +10,4 @@ class MoimlogBackendApplicationTests {
 	void contextLoads() {
 	}
 
-}
+} 
