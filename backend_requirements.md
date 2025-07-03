@@ -255,41 +255,21 @@ DELETE /moimlog/notifications/{id}   # 알림 삭제
 
 ---
 
-## 🚀 시작하기
+# 폴더 구조
 
-### 1. 프로젝트 생성
+src/main/java/com/moimlog/moimlog_backend/
+├── config/          # 설정 클래스들
+├── controller/      # REST API 컨트롤러
+├── service/         # 비즈니스 로직
+├── repository/      # 데이터 접근 계층
+├── entity/          # JPA 엔티티
+├── dto/             # 데이터 전송 객체
+│   ├── request/     # 요청 DTO
+│   └── response/    # 응답 DTO
+├── exception/       # 예외 처리
+└── util/            # 유틸리티 클래스
 
-```bash
-# Spring Initializr 사용 또는 수동 생성
-# https://start.spring.io/
-```
 
-### 2. 의존성 추가
-
-```xml
-<!-- pom.xml에 위의 의존성들 추가 -->
-```
-
-### 3. 설정 파일
-
-```yaml
-# application.yml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/moimlog
-    username: root
-    password: password
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-```
-
-### 4. 데이터베이스 생성
-
-```sql
-CREATE DATABASE moimlog CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
 
 ---
 

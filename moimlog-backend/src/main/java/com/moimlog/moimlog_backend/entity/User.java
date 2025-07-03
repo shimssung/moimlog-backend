@@ -1,7 +1,15 @@
 package com.moimlog.moimlog_backend.entity;
 
 import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 사용자 엔티티 클래스
@@ -9,19 +17,25 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "users")
-public class User {
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@ToString(exclude = "password")
+public class User implements UserDetails {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String id;
+    private Long id;
     
-    @Column(name = "email", nullable = false, unique = true, length = 100)
+    @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
     
     @Column(name = "password", length = 255)
     private String password;
     
-    @Column(name = "name", nullable = false, length = 50)
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
     
     @Column(name = "nickname", length = 50)
@@ -30,14 +44,14 @@ public class User {
     @Column(name = "profile_image", length = 500)
     private String profileImage;
     
-    @Column(name = "bio", length = 500)
+    @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
     
     @Column(name = "phone", length = 20)
     private String phone;
     
     @Column(name = "birth_date")
-    private LocalDateTime birthDate;
+    private LocalDate birthDate;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 10)
@@ -58,165 +72,76 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
     
-    // 기본 생성자
-    public User() {
+    // Spring Security UserDetails 구현
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_USER")); // 사용자 권한 설정
     }
     
-    // 모든 필드를 매개변수로 받는 생성자
-    public User(String id, String email, String password, String name, String nickname,
-                String profileImage, String bio, String phone, LocalDateTime birthDate,
-                Gender gender, Boolean isActive, Boolean isVerified, LocalDateTime lastLoginAt,
-                LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.email = email;
-        this.password = password;
-        this.name = name;
-        this.nickname = nickname;
-        this.profileImage = profileImage;
-        this.bio = bio;
-        this.phone = phone;
-        this.birthDate = birthDate;
-        this.gender = gender;
-        this.isActive = isActive;
-        this.isVerified = isVerified;
-        this.lastLoginAt = lastLoginAt;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
-    }
-    
-    // Getter 메서드들
-    public String getId() {
-        return id;
-    }
-    
-    public String getEmail() {
+
+    /* Spring Security가 사용자 인증을 처리할 때 자동으로 호출하는 메서드들에는 
+       isAccountNonExpired, isAccountNonLocked, isCredentialsNonExpired, isEnabled 메서드가 있음
+       이 메서드들은 사용자 계정의 상태를 확인하는 데 사용됨
+       
+       isAccountNonExpired: 계정 만료 여부 확인
+       isAccountNonLocked: 계정 잠금 여부 확인
+       isCredentialsNonExpired: 자격 증명 만료 여부 확인
+       isEnabled: 계정 활성화 여부 확인
+    */ 
+
+    // Spring Security는 반드시 이 메서드(getUsername)를 구현해야 함
+    @Override
+    public String getUsername() {
         return email;
     }
     
-    public String getPassword() {
-        return password;
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
     }
     
-    public String getName() {
-        return name;
+    @Override
+    public boolean isAccountNonLocked() {
+        return isActive;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
     }
     
-    public String getNickname() {
-        return nickname;
-    }
-    
-    public String getProfileImage() {
-        return profileImage;
-    }
-    
-    public String getBio() {
-        return bio;
-    }
-    
-    public String getPhone() {
-        return phone;
-    }
-    
-    public LocalDateTime getBirthDate() {
-        return birthDate;
-    }
-    
-    public Gender getGender() {
-        return gender;
-    }
-    
-    public Boolean getIsActive() {
+    @Override
+    public boolean isEnabled() {
         return isActive;
     }
     
-    public Boolean getIsVerified() {
-        return isVerified;
-    }
-    
-    public LocalDateTime getLastLoginAt() {
-        return lastLoginAt;
-    }
-    
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-    
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-    
-    // Setter 메서드들
-    public void setId(String id) {
-        this.id = id;
-    }
-    
-    public void setEmail(String email) {
-        this.email = email;
-    }
-    
-    public void setPassword(String password) {
-        this.password = password;
-    }
-    
-    public void setName(String name) {
-        this.name = name;
-    }
-    
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
-    }
-    
-    public void setProfileImage(String profileImage) {
-        this.profileImage = profileImage;
-    }
-    
-    public void setBio(String bio) {
-        this.bio = bio;
-    }
-    
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-    
-    public void setBirthDate(LocalDateTime birthDate) {
-        this.birthDate = birthDate;
-    }
-    
-    public void setGender(Gender gender) {
-        this.gender = gender;
-    }
-    
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
-    
-    public void setIsVerified(Boolean isVerified) {
-        this.isVerified = isVerified;
-    }
-    
-    public void setLastLoginAt(LocalDateTime lastLoginAt) {
-        this.lastLoginAt = lastLoginAt;
-    }
-    
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-    
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-    
-    @PrePersist
+    // JPA 생명주기 메서드
+    @PrePersist // 엔티티가 생성될 때 실행
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(); // 현재 시간을 사용자 생성 시간으로 설정
+        updatedAt = LocalDateTime.now(); // 현재 시간을 사용자 업데이트 시간으로 설정
     }
     
-    @PreUpdate
+    @PreUpdate // 엔티티가 업데이트될 때 실행
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(); // 현재 시간을 사용자 업데이트 시간으로 설정
     }
     
+    // 회원가입용 정적 팩토리 메서드
+    // 매번 회원가입 요청이 들어올 때마다 새로운 사용자 객체를 생성하는 대신 이 메서드를 사용하여 사용자 객체를 생성함
+    // 실수방지, 기본값 자동 설정
+    public static User createUser(String email, String password, String name, String nickname) {
+        return User.builder()
+                .email(email)
+                .password(password)
+                .name(name)
+                .nickname(nickname != null ? nickname : name)
+                .isActive(true)
+                .isVerified(false)
+                .build();
+    }
+    
+    // 성별 enum
     public enum Gender {
         MALE, FEMALE, OTHER
     }
