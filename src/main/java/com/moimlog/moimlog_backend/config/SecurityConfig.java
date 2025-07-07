@@ -43,7 +43,7 @@ public class SecurityConfig {
      * @return BCryptPasswordEncoder 인스턴스
      */
     @Bean
-    public PasswordEncoder passwordEncoder() {
+    PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
@@ -53,7 +53,7 @@ public class SecurityConfig {
      * @return UserDetailsService 인스턴스
      */
     @Bean
-    public UserDetailsService userDetailsService() {
+    UserDetailsService userDetailsService() {
         return username -> userRepository.findByEmailAndIsActiveTrue(username)
                 // 사용자가 있으면 User 반환, 없으면 예외 발생
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + username));
@@ -67,7 +67,7 @@ public class SecurityConfig {
      * @throws Exception 설정 오류 시
      */
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             // CSRF 보호 비활성화 (개발 단계에서만)
             .csrf(csrf -> csrf.disable())
@@ -84,6 +84,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // 공개 API (인증 불필요)
                 .requestMatchers("/auth/signup").permitAll()
+                .requestMatchers("/auth/login").permitAll()
                 .requestMatchers("/auth/check-email").permitAll()
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()
@@ -107,12 +108,13 @@ public class SecurityConfig {
      * @return CorsConfigurationSource
      */
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // 특정 origin만 허용 (보안 강화)
+        configuration.setAllowedOriginPatterns(Arrays.asList("http://localhost:3000", "http://127.0.0.1:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(true); // 쿠키 전송 허용 (보안 강화)
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

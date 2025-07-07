@@ -1,6 +1,8 @@
 package com.moimlog.moimlog_backend.controller;
 
+import com.moimlog.moimlog_backend.dto.request.LoginRequest;
 import com.moimlog.moimlog_backend.dto.request.SignupRequest;
+import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") // CORS 설정
 public class AuthController {
     
     private final UserService userService;
@@ -35,6 +37,24 @@ public class AuthController {
         
         if (response.isSuccess()) {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    /**
+     * 로그인 API
+     * @param loginRequest 로그인 요청 정보
+     * @return 로그인 결과
+     */
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
+        log.info("로그인 API 호출: {}", loginRequest.getEmail());
+        
+        LoginResponse response = userService.login(loginRequest);
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
         } else {
             return ResponseEntity.badRequest().body(response);
         }

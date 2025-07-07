@@ -1,9 +1,12 @@
 package com.moimlog.moimlog_backend.service;
 
+import com.moimlog.moimlog_backend.dto.request.LoginRequest;
 import com.moimlog.moimlog_backend.dto.request.SignupRequest;
+import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.entity.User;
 import com.moimlog.moimlog_backend.repository.UserRepository;
+import com.moimlog.moimlog_backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,13 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
  * 사용자 관련 비즈니스 로직을 처리
  */
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor // 생성자 자동 생성
 @Slf4j // 로깅 기능 제공
 @Transactional
 public class UserService {
     
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
     
     /**
      * 회원가입 처리
@@ -105,5 +109,54 @@ public class UserService {
     @Transactional(readOnly = true)
     public boolean isEmailDuplicate(String email) {
         return userRepository.existsByEmail(email);
+    }
+    
+    /**
+     * 로그인 처리
+     * @param loginRequest 로그인 요청 정보
+     * @return 로그인 결과
+     */
+    public LoginResponse login(LoginRequest loginRequest) {
+        log.info("로그인 요청: {}", loginRequest.getEmail());
+        
+        try {
+            // 사용자 조회
+            User user = userRepository.findByEmailAndIsActiveTrue(loginRequest.getEmail())
+                    .orElse(null);
+            
+            if (user == null) {
+                log.warn("존재하지 않는 사용자: {}", loginRequest.getEmail());
+                return LoginResponse.failure("이메일 또는 비밀번호가 올바르지 않습니다.");
+            }
+            
+            // 비밀번호 검증
+            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+                log.warn("비밀번호 불일치: {}", loginRequest.getEmail());
+                return LoginResponse.failure("이메일 또는 비밀번호가 올바르지 않습니다.");
+            }
+            
+            // JWT 토큰 생성
+            String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getId());
+            String refreshToken = jwtUtil.generateRefreshToken(user.getEmail(), user.getId());
+            
+            // 마지막 로그인 시간 업데이트
+            user.setLastLoginAt(java.time.LocalDateTime.now());
+            userRepository.save(user);
+            
+            log.info("로그인 성공: {}", user.getEmail());
+            
+            return LoginResponse.success(
+                accessToken,
+                refreshToken,
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getNickname()
+            );
+            
+        } catch (Exception e) {
+            log.error("로그인 중 오류 발생: {}", e.getMessage(), e);
+            return LoginResponse.failure("로그인 중 오류가 발생했습니다.");
+        }
     }
 } 
