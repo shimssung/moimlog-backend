@@ -20,5 +20,5 @@ public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
      * @param userId 조회할 사용자 ID
      * @return 해당 사용자의 역할 목록
      */
-    List<UserRole> findByUserId(String userId);
+    List<UserRole> findByUserId(Long userId);
 } 
