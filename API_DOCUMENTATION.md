@@ -90,6 +90,68 @@
 }
 ```
 
+### 4. 이메일 인증 코드 발송
+
+**POST** `/auth/send-verification`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (성공 - 200):**
+```json
+{
+  "success": true,
+  "message": "인증 코드가 발송되었습니다.",
+  "email": "user@example.com",
+  "verified": false
+}
+```
+
+**Response (실패 - 400):**
+```json
+{
+  "success": false,
+  "message": "이미 가입된 이메일입니다.",
+  "email": "user@example.com",
+  "verified": false
+}
+```
+
+### 5. 이메일 인증 코드 검증
+
+**POST** `/auth/verify-email`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "verificationCode": "123456"
+}
+```
+
+**Response (성공 - 200):**
+```json
+{
+  "success": true,
+  "message": "이메일 인증이 완료되었습니다.",
+  "email": "user@example.com",
+  "verified": true
+}
+```
+
+**Response (실패 - 400):**
+```json
+{
+  "success": false,
+  "message": "인증 코드가 올바르지 않거나 만료되었습니다.",
+  "verified": false
+}
+```
+
 ## 🔧 프론트엔드 연동 가이드
 
 ### CORS 설정

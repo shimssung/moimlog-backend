@@ -2,8 +2,11 @@ package com.moimlog.moimlog_backend.controller;
 
 import com.moimlog.moimlog_backend.dto.request.LoginRequest;
 import com.moimlog.moimlog_backend.dto.request.SignupRequest;
+import com.moimlog.moimlog_backend.dto.request.EmailVerificationRequest;
+import com.moimlog.moimlog_backend.dto.request.SendVerificationRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
+import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
 import com.moimlog.moimlog_backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +76,50 @@ public class AuthController {
         
         return ResponseEntity.ok()
                 .body(new EmailCheckResponse(email, isDuplicate));
+    }
+    
+    /**
+     * 이메일 인증 코드 발송 API
+     * @param request 인증 코드 발송 요청 정보
+     * @return 발송 결과
+     */
+    @PostMapping("/send-verification")
+    public ResponseEntity<Object> sendVerificationCode(@RequestBody SendVerificationRequest request) {
+        log.info("이메일 인증 코드 발송 API 호출: {}", request.getEmail());
+        
+        // 이메일 중복 확인
+        if (userService.isEmailDuplicate(request.getEmail())) {
+            return ResponseEntity.badRequest()
+                    .body(new EmailVerificationResponse(false, "이미 가입된 이메일입니다.", request.getEmail(), false));
+        }
+        
+        boolean success = userService.sendVerificationCode(request.getEmail());
+        
+        if (success) {
+            return ResponseEntity.ok()
+                    .body(new EmailVerificationResponse(true, "인증 코드가 발송되었습니다.", request.getEmail(), false));
+        } else {
+            return ResponseEntity.badRequest()
+                    .body(new EmailVerificationResponse(false, "인증 코드 발송에 실패했습니다.", request.getEmail(), false));
+        }
+    }
+    
+    /**
+     * 이메일 인증 코드 검증 API
+     * @param request 인증 요청 정보
+     * @return 인증 결과
+     */
+    @PostMapping("/verify-email")
+    public ResponseEntity<EmailVerificationResponse> verifyEmail(@RequestBody EmailVerificationRequest request) {
+        log.info("이메일 인증 API 호출: {}", request.getEmail());
+        
+        EmailVerificationResponse response = userService.verifyEmail(request);
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
     }
     
     /**

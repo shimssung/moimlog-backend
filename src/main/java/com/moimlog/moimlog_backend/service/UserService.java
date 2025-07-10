@@ -2,16 +2,22 @@ package com.moimlog.moimlog_backend.service;
 
 import com.moimlog.moimlog_backend.dto.request.LoginRequest;
 import com.moimlog.moimlog_backend.dto.request.SignupRequest;
+import com.moimlog.moimlog_backend.dto.request.EmailVerificationRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
+import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
 import com.moimlog.moimlog_backend.entity.User;
+import com.moimlog.moimlog_backend.entity.EmailVerification;
 import com.moimlog.moimlog_backend.repository.UserRepository;
+import com.moimlog.moimlog_backend.repository.EmailVerificationRepository;
 import com.moimlog.moimlog_backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Random;
 
 /**
  * 사용자 서비스 클래스
@@ -24,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
     
     private final UserRepository userRepository;
+    private final EmailVerificationRepository emailVerificationRepository;
+    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     
@@ -158,5 +166,97 @@ public class UserService {
             log.error("로그인 중 오류 발생: {}", e.getMessage(), e);
             return LoginResponse.failure("로그인 중 오류가 발생했습니다.");
         }
+    }
+    
+    /**
+     * 이메일 인증 코드 발송
+     * @param email 인증 코드를 발송할 이메일
+     * @return 발송 결과
+     */
+    public boolean sendVerificationCode(String email) {
+        log.info("이메일 인증 코드 발송 요청: {}", email);
+        
+        try {
+            // 기존 미인증 인증 코드 삭제
+            emailVerificationRepository.deleteByEmail(email);
+            
+            // 6자리 인증 코드 생성
+            String verificationCode = generateVerificationCode();
+            
+            // 인증 정보 저장
+            EmailVerification verification = EmailVerification.createVerification(email, verificationCode);
+            emailVerificationRepository.save(verification);
+            
+            // 이메일 발송
+            emailService.sendVerificationEmail(email, verificationCode);
+            
+            log.info("이메일 인증 코드 발송 완료: {}", email);
+            return true;
+            
+        } catch (Exception e) {
+            log.error("이메일 인증 코드 발송 실패: {}", email, e);
+            return false;
+        }
+    }
+    
+    /**
+     * 이메일 인증 코드 검증
+     * @param request 인증 요청 정보
+     * @return 인증 결과
+     */
+    public EmailVerificationResponse verifyEmail(EmailVerificationRequest request) {
+        log.info("이메일 인증 요청: {}", request.getEmail());
+        
+        try {
+            // 최신 미인증 인증 정보 조회
+            EmailVerification verification = emailVerificationRepository
+                    .findLatestUnverifiedByEmail(request.getEmail())
+                    .orElse(null);
+            
+            if (verification == null) {
+                return EmailVerificationResponse.failure("인증 코드를 찾을 수 없습니다. 다시 발송해주세요.");
+            }
+            
+            // 인증 코드 검증
+            if (!verification.isValidCode(request.getVerificationCode())) {
+                return EmailVerificationResponse.failure("인증 코드가 올바르지 않거나 만료되었습니다.");
+            }
+            
+            // 인증 완료 처리
+            verification.verify();
+            emailVerificationRepository.save(verification);
+            
+            log.info("이메일 인증 완료: {}", request.getEmail());
+            return EmailVerificationResponse.success(request.getEmail());
+            
+        } catch (Exception e) {
+            log.error("이메일 인증 중 오류 발생: {}", e.getMessage(), e);
+            return EmailVerificationResponse.failure("인증 중 오류가 발생했습니다.");
+        }
+    }
+    
+    /**
+     * 이메일 인증 상태 확인
+     * @param email 확인할 이메일
+     * @return 인증 완료 여부
+     */
+    @Transactional(readOnly = true)
+    public boolean isEmailVerified(String email) {
+        return emailVerificationRepository.findLatestUnverifiedByEmail(email)
+                .map(EmailVerification::getIsVerified)
+                .orElse(false);
+    }
+    
+    /**
+     * 6자리 인증 코드 생성
+     * @return 인증 코드
+     */
+    private String generateVerificationCode() {
+        Random random = new Random();
+        StringBuilder code = new StringBuilder();
+        for (int i = 0; i < 6; i++) {
+            code.append(random.nextInt(10));
+        }
+        return code.toString();
     }
 } 

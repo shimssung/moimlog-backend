@@ -9,4 +9,18 @@ spring.datasource.password=your_password
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
-spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect 
+spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect
+
+# Email Configuration (Gmail 예시)
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=shimssung@gmail.com
+spring.mail.password=m c y x m v g f g f u y x d z q
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+# JWT Configuration
+jwt.secret=your_jwt_secret_key_here_make_it_long_and_secure
+jwt.access-token.expiration=3600000
+jwt.refresh-token.expiration=86400000 

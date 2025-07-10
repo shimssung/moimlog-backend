@@ -86,6 +86,8 @@ public class SecurityConfig {
                 .requestMatchers("/auth/signup").permitAll()
                 .requestMatchers("/auth/login").permitAll()
                 .requestMatchers("/auth/check-email").permitAll()
+                .requestMatchers("/auth/send-verification").permitAll()
+                .requestMatchers("/auth/verify-email").permitAll()
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()
                 
