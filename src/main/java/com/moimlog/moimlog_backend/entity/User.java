@@ -41,7 +41,7 @@ public class User implements UserDetails {
     @Column(name = "nickname", length = 50)
     private String nickname;
     
-    @Column(name = "profile_image", length = 500)
+    @Column(name = "profile_image", columnDefinition = "TEXT")
     private String profileImage;
     
     @Column(name = "bio", columnDefinition = "TEXT")
@@ -58,10 +58,16 @@ public class User implements UserDetails {
     private Gender gender;
     
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private Boolean isActive = true;
     
     @Column(name = "is_verified", nullable = false)
+    @Builder.Default
     private Boolean isVerified = false;
+    
+    @Column(name = "is_onboarding_completed", nullable = false)
+    @Builder.Default
+    private Boolean isOnboardingCompleted = false;
     
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;

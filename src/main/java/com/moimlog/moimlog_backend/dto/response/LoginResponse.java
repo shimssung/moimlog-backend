@@ -21,6 +21,7 @@ public class LoginResponse {
     private String email;
     private String name;
     private String nickname;
+    private Boolean isOnboardingCompleted;
     
     /**
      * 로그인 성공 시 응답 생성
@@ -30,18 +31,19 @@ public class LoginResponse {
      * @param email 이메일
      * @param name 이름 
      * @param nickname 닉네임
+     * @param isOnboardingCompleted 온보딩 완료 여부
      * @return 로그인 성공 응답
      */
-    public static LoginResponse success(String accessToken, String refreshToken, Long userId, String email, String name, String nickname) {
+    public static LoginResponse success(String accessToken, String refreshToken, Long userId, String email, String name, String nickname, Boolean isOnboardingCompleted) {
         return LoginResponse.builder()
                 .success(true)
-                .message("로그인이 성공적으로 완료되었습니다.")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .userId(userId)
                 .email(email)
                 .name(name)
                 .nickname(nickname)
+                .isOnboardingCompleted(isOnboardingCompleted)
                 .build();
     }
     

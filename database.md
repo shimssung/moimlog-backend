@@ -20,6 +20,7 @@ CREATE TABLE users (
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
     last_login_at TIMESTAMP,
+    is_onboarding_completed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -66,7 +67,18 @@ CREATE TABLE moim_categories (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3️⃣ 모임 관련
+-- 3️⃣ 사용자 관심사 (모임 카테고리 매핑)
+CREATE TABLE user_interests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    category_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES moim_categories(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_category (user_id, category_id)
+);
+
+-- 4️⃣ 모임 관련
 CREATE TABLE moims (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
@@ -126,7 +138,7 @@ CREATE TABLE user_favorites (
     UNIQUE KEY unique_user_moim (user_id, moim_id)
 );
 
--- 4️⃣ 게시판 관련
+-- 5️⃣ 게시판 관련
 CREATE TABLE posts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     moim_id BIGINT NOT NULL,
@@ -189,7 +201,7 @@ CREATE TABLE comment_likes (
     UNIQUE KEY unique_comment_user (comment_id, user_id)
 );
 
--- 5️⃣ 일정 관련
+-- 6️⃣ 일정 관련
 CREATE TABLE schedules (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     moim_id BIGINT NOT NULL,
@@ -222,7 +234,7 @@ CREATE TABLE schedule_participants (
     UNIQUE KEY unique_schedule_user (schedule_id, user_id)
 );
 
--- 6️⃣ 채팅 관련
+-- 7️⃣ 채팅 관련
 CREATE TABLE chat_messages (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     moim_id BIGINT NOT NULL,
@@ -248,7 +260,7 @@ CREATE TABLE chat_read_status (
     UNIQUE KEY unique_moim_user (moim_id, user_id)
 );
 
--- 7️⃣ 알림
+-- 8️⃣ 알림
 CREATE TABLE notifications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -262,7 +274,7 @@ CREATE TABLE notifications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 8️⃣ 파일 업로드
+-- 9️⃣ 파일 업로드
 CREATE TABLE file_uploads (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -280,7 +292,7 @@ CREATE TABLE file_uploads (
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE SET NULL
 );
 
--- 9️⃣ 사용자 활동 로그
+-- 🔟 사용자 활동 로그
 CREATE TABLE user_activity_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -294,7 +306,7 @@ CREATE TABLE user_activity_logs (
     FOREIGN KEY (moim_id) REFERENCES moims(id) ON DELETE SET NULL
 );
 
--- 10️⃣ 관리자 기능
+-- 1️⃣1️⃣ 관리자 기능
 CREATE TABLE reports (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     reporter_id BIGINT NOT NULL,
@@ -333,14 +345,21 @@ CREATE TABLE admin_actions (
 -- ========================================
 -- 기본 데이터 삽입
 -- ========================================
-INSERT INTO moim_categories (name, label, description, color) VALUES
-('book', '독서', '책과 관련된 모임', '#3b82f6'),
-('movie', '영화', '영화 감상 및 토론 모임', '#ef4444'),
-('music', '음악', '음악 감상 및 연주 모임', '#8b5cf6'),
-('sports', '스포츠', '운동 및 스포츠 모임', '#10b981'),
-('game', '게임', '게임 관련 모임', '#f59e0b'),
-('other', '기타', '기타 다양한 모임', '#6b7280');
 
+-- 모임 카테고리 데이터 (10개)
+INSERT INTO moim_categories (name, label, description, color) VALUES
+('운동/스포츠', '운동/스포츠', '다양한 운동과 스포츠 활동', '#10b981'),
+('게임', '게임', '온라인/오프라인 게임 모임', '#f59e0b'),
+('독서/스터디', '독서/스터디', '책 읽기와 공부 모임', '#3b82f6'),
+('음악', '음악', '음악 감상과 연주 활동', '#8b5cf6'),
+('여행', '여행', '국내외 여행 모임', '#06b6d4'),
+('요리/베이킹', '요리/베이킹', '요리와 베이킹 활동', '#ef4444'),
+('영화/드라마', '영화/드라마', '영화와 드라마 감상', '#ec4899'),
+('예술/문화', '예술/문화', '예술과 문화 활동', '#a855f7'),
+('IT/기술', 'IT/기술', 'IT와 기술 관련 모임', '#6366f1'),
+('기타', '기타', '기타 다양한 모임', '#6b7280');
+
+-- 역할 데이터
 INSERT INTO roles (name, description, permissions) VALUES
 ('admin', '시스템 관리자', '{"all": true}'),
 ('user', '일반 사용자', '{"moim_create": true, "moim_join": true, "post_create": true, "comment_create": true}'),
@@ -351,6 +370,12 @@ INSERT INTO roles (name, description, permissions) VALUES
 -- ========================================
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_name ON users(name);
+CREATE INDEX idx_users_nickname ON users(nickname);
+CREATE INDEX idx_users_is_onboarding_completed ON users(is_onboarding_completed);
+CREATE INDEX idx_user_interests_user_id ON user_interests(user_id);
+CREATE INDEX idx_user_interests_category_id ON user_interests(category_id);
+CREATE INDEX idx_moim_categories_name ON moim_categories(name);
+CREATE INDEX idx_moim_categories_is_active ON moim_categories(is_active);
 CREATE INDEX idx_moims_category_id ON moims(category_id);
 CREATE INDEX idx_moims_created_by ON moims(created_by);
 CREATE INDEX idx_moims_online_type ON moims(online_type);
@@ -375,7 +400,7 @@ CREATE INDEX idx_user_activity_logs_created_at ON user_activity_logs(created_at)
 -- 뷰
 -- ========================================
 CREATE VIEW moim_details AS
-SELECT 
+SELECT
     m.*,
     mc.name as category_name,
     mc.label as category_label,
@@ -386,8 +411,20 @@ FROM moims m
 LEFT JOIN moim_categories mc ON m.category_id = mc.id
 LEFT JOIN users u ON m.created_by = u.id;
 
+CREATE VIEW user_interests_details AS
+SELECT
+    ui.*,
+    u.name as user_name,
+    u.email as user_email,
+    mc.name as category_name,
+    mc.label as category_label,
+    mc.color as category_color
+FROM user_interests ui
+JOIN users u ON ui.user_id = u.id
+JOIN moim_categories mc ON ui.category_id = mc.id;
+
 CREATE VIEW moim_member_details AS
-SELECT 
+SELECT
     mm.*,
     u.name,
     u.email,
@@ -397,7 +434,7 @@ FROM moim_members mm
 JOIN users u ON mm.user_id = u.id;
 
 CREATE VIEW post_details AS
-SELECT 
+SELECT
     p.*,
     u.name as author_name,
     u.profile_image as author_image,
@@ -405,5 +442,4 @@ SELECT
 FROM posts p
 JOIN users u ON p.author_id = u.id
 JOIN moims m ON p.moim_id = m.id;
-
 ```

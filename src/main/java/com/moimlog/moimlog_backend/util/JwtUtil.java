@@ -1,9 +1,10 @@
 package com.moimlog.moimlog_backend.util;
 
+import com.moimlog.moimlog_backend.config.JwtConfig;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -13,40 +14,31 @@ import java.util.Date;
  * JWT 토큰 생성 및 검증을 위한 유틸리티 클래스
  */
 @Component
+@RequiredArgsConstructor
 @Slf4j
 public class JwtUtil {
     
-    // JWT 시크릿 키
-    @Value("${jwt.secret}")
-    private String secret;
-    
-    // Access Token 만료 시간
-    @Value("${jwt.expiration}")
-    private Long expiration;
-    
-    // Refresh Token 만료 시간
-    @Value("${jwt.refresh-expiration}")
-    private Long refreshExpiration;
+    private final JwtConfig jwtConfig;
     
     /**
      * JWT 시크릿 키 생성
      */
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return Keys.hmacShaKeyFor(jwtConfig.getSecret().getBytes());
     }
     
     /**
      * Access Token 생성
      */
     public String generateAccessToken(String email, Long userId) {
-        return generateToken(email, userId, expiration);
+        return generateToken(email, userId, jwtConfig.getAccessTokenExpiration());
     }
     
     /**
      * Refresh Token 생성
      */
     public String generateRefreshToken(String email, Long userId) {
-        return generateToken(email, userId, refreshExpiration);
+        return generateToken(email, userId, jwtConfig.getRefreshTokenExpiration());
     }
     
     /**
@@ -116,5 +108,26 @@ public class JwtUtil {
         } catch (Exception e) {
             return true;
         }
+    }
+    
+    /**
+     * 리프레시 토큰 유효성 검증
+     */
+    public boolean validateRefreshToken(String refreshToken) {
+        return validateToken(refreshToken);
+    }
+    
+    /**
+     * 리프레시 토큰에서 이메일 추출
+     */
+    public String getEmailFromRefreshToken(String refreshToken) {
+        return getEmailFromToken(refreshToken);
+    }
+    
+    /**
+     * 리프레시 토큰에서 사용자 ID 추출
+     */
+    public Long getUserIdFromRefreshToken(String refreshToken) {
+        return getUserIdFromToken(refreshToken);
     }
 } 

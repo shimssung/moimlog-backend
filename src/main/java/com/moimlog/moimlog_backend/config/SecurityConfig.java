@@ -1,7 +1,7 @@
 package com.moimlog.moimlog_backend.config;
 
 import com.moimlog.moimlog_backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
+import com.moimlog.moimlog_backend.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,6 +12,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -32,10 +33,15 @@ import java.util.Arrays;
 
 // final 필드들을 매개변수로 받는 생성자를 자동 생성
 // Spring의 의존성 주입(DI)을 위한 편의 기능
-@RequiredArgsConstructor 
 public class SecurityConfig {
 
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
+    
+    public SecurityConfig(UserRepository userRepository, JwtUtil jwtUtil) {
+        this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
+    }
 
     /**
      * 비밀번호 암호화를 위한 BCrypt 인코더 빈 등록
@@ -88,8 +94,20 @@ public class SecurityConfig {
                 .requestMatchers("/auth/check-email").permitAll()
                 .requestMatchers("/auth/send-verification").permitAll()
                 .requestMatchers("/auth/verify-email").permitAll()
+                .requestMatchers("/auth/check-nickname").permitAll() // 온보딩 중 닉네임 중복 체크
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()
+                
+                // 인증이 필요한 API
+                .requestMatchers("/auth/me").authenticated()
+                .requestMatchers("/auth/profile").authenticated()
+                .requestMatchers("/auth/onboarding").authenticated() // 온보딩은 인증 필요
+                .requestMatchers("/auth/onboarding/status").authenticated()
+                .requestMatchers("/auth/user-categories").authenticated()
+                .requestMatchers("/auth/moim-categories").authenticated()
+                .requestMatchers("/auth/refresh").authenticated()
+                .requestMatchers("/auth/logout").authenticated()
+                .requestMatchers("/auth/upload-profile-image").authenticated()
                 
                 // 관리자 API
                 .requestMatchers("/admin/**").hasRole("ADMIN")
@@ -99,7 +117,10 @@ public class SecurityConfig {
             )
             
             // HTTP Basic 인증 비활성화 (JWT 사용 예정)
-            .httpBasic(httpBasic -> httpBasic.disable());
+            .httpBasic(httpBasic -> httpBasic.disable())
+            
+            // JWT 필터 추가
+            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService()), UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }
@@ -117,6 +138,7 @@ public class SecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true); // 쿠키 전송 허용 (보안 강화)
+        configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

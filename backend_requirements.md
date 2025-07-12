@@ -6,7 +6,8 @@
 **프로젝트 타입**: 모임 관리 플랫폼  
 **프론트엔드**: Next.js (React)  
 **백엔드**: Java + Spring Boot  
-**데이터베이스**: MySQL
+**데이터베이스**: MySQL  
+**파일 저장소**: AWS S3
 
 ---
 
@@ -16,11 +17,13 @@
 
 ```
 Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL)
+                                    ↓
+                              AWS S3 (파일 저장)
 ```
 
 ### 주요 기능
 
-1. **사용자 관리** - 회원가입, 로그인, 소셜 로그인
+1. **사용자 관리** - 회원가입, 로그인, 온보딩
 2. **모임 관리** - 모임 생성, 수정, 삭제, 검색
 3. **게시판** - 공지사항, 자유게시판, 사진게시판
 4. **일정 관리** - 모임 일정, 작업, 마감일
@@ -41,24 +44,26 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL)
   "password": "hashed_password",
   "name": "홍길동",
   "nickname": "길동이",
-  "profileImage": "https://...",
+  "profileImage": "https://moimlog-bucket.s3.ap-southeast-2.amazonaws.com/profile-images/...",
   "bio": "자기소개",
   "phone": "010-1234-5678",
   "birthDate": "1990-01-01",
   "gender": "male|female|other",
   "isActive": true,
   "isVerified": false,
+  "isOnboardingCompleted": true,
   "lastLoginAt": "2025-07-01T10:30:00",
   "createdAt": "2025-06-01T00:00:00",
   "updatedAt": "2025-07-01T10:30:00"
 }
 ```
 
-### 소셜 로그인 지원
+### 온보딩 프로세스
 
-- **Google OAuth2**
-- **Kakao OAuth2**
-- **Naver OAuth2**
+1. **회원가입** → 기본 정보 입력
+2. **로그인** → JWT 토큰 발급
+3. **온보딩** → 프로필 설정, 모임 카테고리 선택
+4. **완료** → 메인 페이지로 이동
 
 ### 사용자 역할 (Roles)
 
@@ -67,6 +72,34 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL)
 - **MODERATOR**: 모임 운영자
 
 ---
+
+## 🏷️ 모임 카테고리 시스템
+
+### 카테고리 정보 구조
+
+```json
+{
+  "id": 1,
+  "name": "운동/스포츠",
+  "label": "운동/스포츠",
+  "description": "다양한 운동과 스포츠 활동",
+  "color": "#10b981",
+  "createdAt": "2025-07-12T09:00:00"
+}
+```
+
+### 기본 모임 카테고리 (10개)
+
+1. **운동/스포츠** - 다양한 운동과 스포츠 활동
+2. **게임** - 온라인/오프라인 게임 모임
+3. **독서/스터디** - 책 읽기와 공부 모임
+4. **음악** - 음악 감상과 연주 활동
+5. **여행** - 국내외 여행 모임
+6. **요리/베이킹** - 요리와 베이킹 활동
+7. **영화/드라마** - 영화와 드라마 감상
+8. **예술/문화** - 예술과 문화 활동
+9. **IT/기술** - IT와 기술 관련 모임
+10. **기타** - 기타 다양한 모임
 
 ---
 
@@ -94,6 +127,7 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL)
 
 - **비밀번호 암호화**: BCrypt 사용
 - **JWT 토큰**: Access Token + Refresh Token
+- **Refresh Token**: HttpOnly 쿠키로 관리
 - **CORS 설정**: 프론트엔드 도메인 허용
 - **API 인증**: 모든 API에 JWT 토큰 검증
 
@@ -104,92 +138,100 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL)
 ### 인증 관련
 
 ```
-POST   /moimlog/auth/signup          # 회원가입
-POST   /moimlog/auth/login           # 로그인
-POST   /moimlog/auth/refresh         # 토큰 갱신
-POST   /moimlog/auth/logout          # 로그아웃
-GET    /moimlog/auth/me              # 내 정보 조회
-PUT    /moimlog/auth/profile         # 프로필 수정
+POST   /auth/signup                    # 회원가입
+POST   /auth/login                     # 로그인
+POST   /auth/refresh                   # 토큰 갱신
+POST   /auth/logout                    # 로그아웃
+GET    /auth/me                        # 내 정보 조회
+PUT    /auth/profile                   # 프로필 수정
+GET    /auth/check-email              # 이메일 중복 확인
+POST   /auth/send-verification        # 이메일 인증 코드 발송
+POST   /auth/verify-email             # 이메일 인증 코드 검증
 ```
 
-### 소셜 로그인
+### 온보딩 관련
 
 ```
-GET    /moimlog/auth/oauth2/google   # Google 로그인
-GET    /moimlog/auth/oauth2/kakao    # Kakao 로그인
-GET    /moimlog/auth/oauth2/naver    # Naver 로그인
+POST   /auth/onboarding               # 온보딩 처리
+GET    /auth/onboarding/status        # 온보딩 완료 여부 확인
+GET    /auth/check-nickname           # 닉네임 중복 확인
 ```
 
-### 카테고리 관련
+### 모임 카테고리 관련
 
 ```
-GET    /moimlog/categories           # 카테고리 목록 조회
-GET    /moimlog/categories/{id}      # 카테고리 상세 조회
-POST   /moimlog/categories           # 카테고리 생성 (관리자)
-PUT    /moimlog/categories/{id}      # 카테고리 수정 (관리자)
-DELETE /moimlog/categories/{id}      # 카테고리 삭제 (관리자)
+GET    /auth/moim-categories          # 전체 모임 카테고리 목록
+GET    /auth/user-categories          # 사용자 모임 카테고리 목록
 ```
 
-### 모임 관련
+### 소셜 로그인 (예정)
 
 ```
-GET    /moimlog/moims                # 모임 목록 조회
-POST   /moimlog/moims                # 모임 생성
-GET    /moimlog/moims/{id}           # 모임 상세 조회
-PUT    /moimlog/moims/{id}           # 모임 수정
-DELETE /moimlog/moims/{id}           # 모임 삭제
-POST   /moimlog/moims/{id}/join      # 모임 가입
-DELETE /moimlog/moims/{id}/leave     # 모임 탈퇴
+GET    /auth/oauth2/google            # Google 로그인
+GET    /auth/oauth2/kakao             # Kakao 로그인
+GET    /auth/oauth2/naver             # Naver 로그인
 ```
 
-### 게시판 관련
+### 모임 관련 (예정)
 
 ```
-GET    /moimlog/moims/{id}/posts     # 게시글 목록
-POST   /moimlog/moims/{id}/posts     # 게시글 작성
-GET    /moimlog/posts/{id}           # 게시글 상세
-PUT    /moimlog/posts/{id}           # 게시글 수정
-DELETE /moimlog/posts/{id}           # 게시글 삭제
-POST   /moimlog/posts/{id}/likes     # 좋아요
-DELETE /moimlog/posts/{id}/likes     # 좋아요 취소
+GET    /moimlog/moims                 # 모임 목록 조회
+POST   /moimlog/moims                 # 모임 생성
+GET    /moimlog/moims/{id}            # 모임 상세 조회
+PUT    /moimlog/moims/{id}            # 모임 수정
+DELETE /moimlog/moims/{id}            # 모임 삭제
+POST   /moimlog/moims/{id}/join       # 모임 가입
+DELETE /moimlog/moims/{id}/leave      # 모임 탈퇴
 ```
 
-### 댓글 관련
+### 게시판 관련 (예정)
 
 ```
-GET    /moimlog/posts/{id}/comments  # 댓글 목록
-POST   /moimlog/posts/{id}/comments  # 댓글 작성
-PUT    /moimlog/comments/{id}        # 댓글 수정
-DELETE /moimlog/comments/{id}        # 댓글 삭제
+GET    /moimlog/moims/{id}/posts      # 게시글 목록
+POST   /moimlog/moims/{id}/posts      # 게시글 작성
+GET    /moimlog/posts/{id}            # 게시글 상세
+PUT    /moimlog/posts/{id}            # 게시글 수정
+DELETE /moimlog/posts/{id}            # 게시글 삭제
+POST   /moimlog/posts/{id}/likes      # 좋아요
+DELETE /moimlog/posts/{id}/likes      # 좋아요 취소
 ```
 
-### 일정 관련
+### 댓글 관련 (예정)
 
 ```
-GET    /moimlog/moims/{id}/schedules # 일정 목록
-POST   /moimlog/moims/{id}/schedules # 일정 생성
-GET    /moimlog/schedules/{id}       # 일정 상세
-PUT    /moimlog/schedules/{id}       # 일정 수정
-DELETE /moimlog/schedules/{id}       # 일정 삭제
+GET    /moimlog/posts/{id}/comments   # 댓글 목록
+POST   /moimlog/posts/{id}/comments   # 댓글 작성
+PUT    /moimlog/comments/{id}         # 댓글 수정
+DELETE /moimlog/comments/{id}         # 댓글 삭제
+```
+
+### 일정 관련 (예정)
+
+```
+GET    /moimlog/moims/{id}/schedules  # 일정 목록
+POST   /moimlog/moims/{id}/schedules  # 일정 생성
+GET    /moimlog/schedules/{id}        # 일정 상세
+PUT    /moimlog/schedules/{id}        # 일정 수정
+DELETE /moimlog/schedules/{id}        # 일정 삭제
 POST   /moimlog/schedules/{id}/attend # 일정 참석
 DELETE /moimlog/schedules/{id}/attend # 일정 참석 취소
 ```
 
-### 멤버 관련
+### 멤버 관련 (예정)
 
 ```
-GET    /moimlog/moims/{id}/members   # 멤버 목록
+GET    /moimlog/moims/{id}/members    # 멤버 목록
 PUT    /moimlog/moims/{id}/members/{userId}/role # 역할 변경
 DELETE /moimlog/moims/{id}/members/{userId} # 멤버 제거
 ```
 
-### 알림 관련
+### 알림 관련 (예정)
 
 ```
-GET    /moimlog/notifications        # 알림 목록
+GET    /moimlog/notifications         # 알림 목록
 PUT    /moimlog/notifications/{id}/read # 읽음 처리
 PUT    /moimlog/notifications/read-all # 모두 읽음 처리
-DELETE /moimlog/notifications/{id}   # 알림 삭제
+DELETE /moimlog/notifications/{id}    # 알림 삭제
 ```
 
 ---
@@ -205,11 +247,12 @@ DELETE /moimlog/notifications/{id}   # 알림 삭제
 - **Spring OAuth2 Client**
 - **MySQL 8.0**
 - **JWT (jjwt 0.11.5)**
+- **AWS SDK for Java**
 - **Lombok**
 
 ### 개발 도구
 
-- **Maven**
+- **Gradle**
 - **IntelliJ IDEA / Eclipse**
 - **Postman / Insomnia**
 - **MySQL Workbench**
@@ -218,35 +261,40 @@ DELETE /moimlog/notifications/{id}   # 알림 삭제
 
 - **Render** - 백엔드 배포
 - **Vercel** - 프론트엔드 배포
+- **AWS S3** - 파일 저장소
 - **로컬 MySQL** - 데이터베이스
 
 ---
 
 ## 📋 개발 우선순위
 
-### Phase 1: 기본 인프라
+### Phase 1: 기본 인프라 ✅
 
-1. **프로젝트 설정** - Spring Boot 프로젝트 생성
-2. **데이터베이스 설계** - 테이블 생성 및 인덱스 설정
-3. **사용자 인증** - JWT 기반 인증 시스템
-4. **소셜 로그인** - Google, Kakao, Naver OAuth2
+1. **프로젝트 설정** - Spring Boot 프로젝트 생성 ✅
+2. **데이터베이스 설계** - 테이블 생성 및 인덱스 설정 ✅
+3. **사용자 인증** - JWT 기반 인증 시스템 ✅
+4. **이메일 인증** - 이메일 인증 시스템 ✅
+5. **온보딩 시스템** - 사용자 온보딩 프로세스 ✅
+6. **모임 카테고리** - 카테고리 관리 시스템 ✅
+7. **AWS S3 연동** - 파일 업로드 시스템 ✅
+8. **프로필 관리** - 사용자 프로필 조회/수정 ✅
+9. **전역 예외 처리** - 일관된 에러 응답 ✅
 
-### Phase 2: 핵심 기능
+### Phase 2: 핵심 기능 (진행 예정)
 
-1. **카테고리 관리** - 카테고리 CRUD 기능
-2. **모임 관리** - CRUD 기능
-3. **멤버 관리** - 가입, 탈퇴, 역할 관리
-4. **게시판** - 공지사항, 자유게시판, 사진게시판
-5. **댓글 시스템** - 댓글 CRUD, 좋아요
+1. **모임 관리** - CRUD 기능
+2. **멤버 관리** - 가입, 탈퇴, 역할 관리
+3. **게시판** - 공지사항, 자유게시판, 사진게시판
+4. **댓글 시스템** - 댓글 CRUD, 좋아요
 
-### Phase 3: 고급 기능
+### Phase 3: 고급 기능 (진행 예정)
 
 1. **일정 관리** - 일정 CRUD, 참석 관리
 2. **채팅 시스템** - WebSocket 기반 실시간 채팅
 3. **알림 시스템** - 실시간 알림
-4. **파일 업로드** - 이미지, 파일 업로드
+4. **소셜 로그인** - Google, Kakao, Naver OAuth2
 
-### Phase 4: 관리 기능
+### Phase 4: 관리 기능 (진행 예정)
 
 1. **관리자 기능** - 사용자 관리, 신고 처리
 2. **검색 기능** - 모임, 게시글 검색
@@ -258,18 +306,48 @@ DELETE /moimlog/notifications/{id}   # 알림 삭제
 # 폴더 구조
 
 src/main/java/com/moimlog/moimlog_backend/
-├── config/          # 설정 클래스들
-├── controller/      # REST API 컨트롤러
-├── service/         # 비즈니스 로직
-├── repository/      # 데이터 접근 계층
-├── entity/          # JPA 엔티티
-├── dto/             # 데이터 전송 객체
-│   ├── request/     # 요청 DTO
-│   └── response/    # 응답 DTO
-├── exception/       # 예외 처리
-└── util/            # 유틸리티 클래스
-
-
+├── config/ # 설정 클래스들
+│ ├── SecurityConfig.java # Spring Security 설정
+│ ├── JwtAuthenticationFilter.java # JWT 인증 필터
+│ ├── AwsConfig.java # AWS 설정
+│ ├── AwsS3Config.java # AWS S3 설정
+│ └── JwtConfig.java # JWT 설정
+├── controller/ # REST API 컨트롤러
+│ └── AuthController.java # 인증 관련 API
+├── service/ # 비즈니스 로직
+│ ├── UserService.java # 사용자 서비스
+│ ├── EmailService.java # 이메일 서비스
+│ └── S3Service.java # S3 파일 업로드 서비스
+├── repository/ # 데이터 접근 계층
+│ ├── UserRepository.java # 사용자 리포지토리
+│ ├── EmailVerificationRepository.java # 이메일 인증 리포지토리
+│ ├── MoimCategoryRepository.java # 모임 카테고리 리포지토리
+│ └── UserMoimCategoryRepository.java # 사용자-카테고리 리포지토리
+├── entity/ # JPA 엔티티
+│ ├── User.java # 사용자 엔티티
+│ ├── EmailVerification.java # 이메일 인증 엔티티
+│ ├── MoimCategory.java # 모임 카테고리 엔티티
+│ └── UserMoimCategory.java # 사용자-카테고리 엔티티
+├── dto/ # 데이터 전송 객체
+│ ├── request/ # 요청 DTO
+│ │ ├── LoginRequest.java # 로그인 요청
+│ │ ├── SignupRequest.java # 회원가입 요청
+│ │ ├── OnboardingRequest.java # 온보딩 요청
+│ │ ├── UpdateProfileRequest.java # 프로필 수정 요청
+│ │ ├── EmailVerificationRequest.java # 이메일 인증 요청
+│ │ └── SendVerificationRequest.java # 인증 코드 발송 요청
+│ ├── response/ # 응답 DTO
+│ │ ├── LoginResponse.java # 로그인 응답
+│ │ ├── SignupResponse.java # 회원가입 응답
+│ │ ├── OnboardingResponse.java # 온보딩 응답
+│ │ ├── UserProfileResponse.java # 프로필 조회 응답
+│ │ └── EmailVerificationResponse.java # 이메일 인증 응답
+│ └── common/ # 공통 DTO
+│ └── ApiResponse.java # 공통 API 응답
+├── exception/ # 예외 처리
+│ └── GlobalExceptionHandler.java # 전역 예외 처리
+└── util/ # 유틸리티 클래스
+└── JwtUtil.java # JWT 유틸리티
 
 ---
 
@@ -279,7 +357,8 @@ src/main/java/com/moimlog/moimlog_backend/
 
 - **CORS 설정** 필수
 - **JWT 토큰** 헤더에 포함
-- **파일 업로드** multipart/form-data 지원
+- **파일 업로드** Base64 인코딩 지원
+- **AWS S3** 이미지 URL 반환
 
 ### 보안 고려사항
 
@@ -287,6 +366,7 @@ src/main/java/com/moimlog/moimlog_backend/
 - **XSS** 방지
 - **CSRF** 방지
 - **Rate Limiting** 적용
+- **JWT 토큰** 보안 강화
 
 ### 성능 고려사항
 
@@ -294,6 +374,15 @@ src/main/java/com/moimlog/moimlog_backend/
 - **캐싱** 전략
 - **인덱스** 최적화
 - **N+1 문제** 해결
+- **AWS S3** CDN 활용
+
+### 온보딩 플로우
+
+1. **회원가입** → 기본 정보 입력
+2. **로그인** → JWT 토큰 발급
+3. **온보딩 상태 확인** → `/auth/onboarding/status`
+4. **온보딩 진행** → 프로필 설정, 모임 카테고리 선택
+5. **온보딩 완료** → 메인 페이지로 이동
 
 ---
 

@@ -3,13 +3,21 @@ package com.moimlog.moimlog_backend.service;
 import com.moimlog.moimlog_backend.dto.request.LoginRequest;
 import com.moimlog.moimlog_backend.dto.request.SignupRequest;
 import com.moimlog.moimlog_backend.dto.request.EmailVerificationRequest;
+import com.moimlog.moimlog_backend.dto.request.UpdateProfileRequest;
+import com.moimlog.moimlog_backend.dto.request.OnboardingRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
+import com.moimlog.moimlog_backend.dto.response.UserProfileResponse;
+import com.moimlog.moimlog_backend.dto.response.OnboardingResponse;
 import com.moimlog.moimlog_backend.entity.User;
 import com.moimlog.moimlog_backend.entity.EmailVerification;
+import com.moimlog.moimlog_backend.entity.MoimCategory;
+import com.moimlog.moimlog_backend.entity.UserMoimCategory;
 import com.moimlog.moimlog_backend.repository.UserRepository;
 import com.moimlog.moimlog_backend.repository.EmailVerificationRepository;
+import com.moimlog.moimlog_backend.repository.MoimCategoryRepository;
+import com.moimlog.moimlog_backend.repository.UserMoimCategoryRepository;
 import com.moimlog.moimlog_backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +25,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Random;
+import java.util.Optional;
 
 /**
  * 사용자 서비스 클래스
@@ -31,9 +41,12 @@ public class UserService {
     
     private final UserRepository userRepository;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final MoimCategoryRepository moimCategoryRepository;
+    private final UserMoimCategoryRepository userMoimCategoryRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final Optional<S3Service> s3Service;
     
     /**
      * 회원가입 처리
@@ -159,7 +172,8 @@ public class UserService {
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
-                user.getNickname()
+                user.getNickname(),
+                user.getIsOnboardingCompleted()
             );
             
         } catch (Exception e) {
@@ -245,6 +259,248 @@ public class UserService {
         return emailVerificationRepository.findLatestUnverifiedByEmail(email)
                 .map(EmailVerification::getIsVerified)
                 .orElse(false);
+    }
+    
+    /**
+     * 내 프로필 조회
+     * @return 내 프로필 정보
+     */
+    @Transactional(readOnly = true)
+    public UserProfileResponse getMyProfile() {
+        // 현재 인증된 사용자 정보 가져오기
+        String currentUserEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        return UserProfileResponse.from(user);
+    }
+    
+    /**
+     * 프로필 수정
+     * @param request 프로필 수정 요청
+     * @return 수정된 프로필 정보
+     */
+    public UserProfileResponse updateProfile(UpdateProfileRequest request) {
+        // 현재 인증된 사용자 정보 가져오기
+        String currentUserEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        // 프로필 정보 업데이트
+        user.setName(request.getName());
+        if (request.getNickname() != null) {
+            user.setNickname(request.getNickname());
+        }
+        if (request.getProfileImage() != null) {
+            user.setProfileImage(request.getProfileImage());
+        }
+        if (request.getBio() != null) {
+            user.setBio(request.getBio());
+        }
+        if (request.getPhone() != null) {
+            user.setPhone(request.getPhone());
+        }
+        if (request.getBirthDate() != null) {
+            user.setBirthDate(request.getBirthDate());
+        }
+        if (request.getGender() != null) {
+            user.setGender(request.getGender());
+        }
+        
+        User updatedUser = userRepository.save(user);
+        return UserProfileResponse.from(updatedUser);
+    }
+    
+    /**
+     * 현재 인증된 사용자의 이메일 가져오기
+     * @return 현재 사용자 이메일
+     */
+    private String getCurrentUserEmail() {
+        return org.springframework.security.core.context.SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+    }
+    
+    /**
+     * 온보딩 처리
+     * @param request 온보딩 요청 정보
+     * @return 온보딩 결과
+     */
+    @Transactional
+    public OnboardingResponse processOnboarding(OnboardingRequest request) {
+        log.info("온보딩 요청 처리");
+        
+        try {
+            // 현재 인증된 사용자 정보 가져오기
+            String currentUserEmail = getCurrentUserEmail();
+            User user = userRepository.findByEmail(currentUserEmail)
+                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            
+            // 닉네임 중복 확인
+            if (request.getNickname() != null && !request.getNickname().equals(user.getNickname())) {
+                if (userRepository.existsByNickname(request.getNickname())) {
+                    return OnboardingResponse.failure("이미 사용 중인 닉네임입니다.");
+                }
+            }
+            
+            // 사용자 정보 업데이트
+            if (request.getNickname() != null) {
+                user.setNickname(request.getNickname());
+            }
+            if (request.getBio() != null) {
+                user.setBio(request.getBio());
+            }
+            if (request.getProfileImage() != null) {
+                // S3에 이미지 업로드
+                if (s3Service.isPresent()) {
+                    try {
+                        String s3Url = s3Service.get().uploadBase64Image(
+                            request.getProfileImage(), ".jpg");
+                        user.setProfileImage(s3Url);
+                        log.info("프로필 이미지 S3 업로드 완료: {}", s3Url);
+                    } catch (Exception e) {
+                        log.error("프로필 이미지 업로드 실패: {}", e.getMessage());
+                        return OnboardingResponse.failure("프로필 이미지 업로드에 실패했습니다.");
+                    }
+                } else {
+                    // S3가 비활성화된 경우 Base64 그대로 저장
+                    user.setProfileImage(request.getProfileImage());
+                }
+            }
+            
+            // 온보딩 완료 상태로 변경
+            user.setIsOnboardingCompleted(true);
+            
+            // 사용자 정보 저장
+            userRepository.save(user);
+            
+            // 기존 관심사 삭제
+            userMoimCategoryRepository.deleteByUserId(user.getId());
+            
+            // 새로운 모임 카테고리 추가
+            if (request.getMoimCategories() != null && !request.getMoimCategories().isEmpty()) {
+                for (String categoryName : request.getMoimCategories()) {
+                    MoimCategory category = moimCategoryRepository.findByName(categoryName)
+                            .orElse(null);
+                    
+                    if (category != null) {
+                        UserMoimCategory userCategory = UserMoimCategory.createUserMoimCategory(user, category);
+                        userMoimCategoryRepository.save(userCategory);
+                    }
+                }
+            }
+            
+            log.info("온보딩 완료: {}", user.getEmail());
+            
+            return OnboardingResponse.success(user.getId(), user.getNickname());
+            
+        } catch (Exception e) {
+            log.error("온보딩 처리 중 오류 발생: {}", e.getMessage(), e);
+            return OnboardingResponse.failure("온보딩 처리 중 오류가 발생했습니다.");
+        }
+    }
+    
+    /**
+     * 온보딩 완료 여부 확인
+     * @return 온보딩 완료 여부
+     */
+    @Transactional(readOnly = true)
+    public boolean isOnboardingCompleted() {
+        String currentUserEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        return user.getIsOnboardingCompleted();
+    }
+    
+    /**
+     * 사용자의 모임 카테고리 목록 조회
+     * @return 모임 카테고리 이름 목록
+     */
+    @Transactional(readOnly = true)
+    public List<String> getUserCategories() {
+        String currentUserEmail = getCurrentUserEmail();
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        return userMoimCategoryRepository.findCategoryNamesByUserId(user.getId());
+    }
+    
+    /**
+     * 모든 모임 카테고리 목록 조회
+     * @return 모임 카테고리 목록
+     */
+    @Transactional(readOnly = true)
+    public List<MoimCategory> getAllCategories() {
+        return moimCategoryRepository.findAllOrderByName();
+    }
+    
+    /**
+     * 닉네임 중복 확인
+     * @param nickname 확인할 닉네임
+     * @return 중복 여부
+     */
+    @Transactional(readOnly = true)
+    public boolean isNicknameDuplicate(String nickname) {
+        return userRepository.existsByNickname(nickname);
+    }
+    
+    /**
+     * 액세스 토큰 갱신
+     * @param refreshToken 리프레시 토큰
+     * @return 새로운 액세스 토큰
+     */
+    public String refreshAccessToken(String refreshToken) {
+        log.info("액세스 토큰 갱신 요청");
+        
+        try {
+            // 리프레시 토큰 검증
+            if (!jwtUtil.validateRefreshToken(refreshToken)) {
+                throw new RuntimeException("유효하지 않은 리프레시 토큰입니다.");
+            }
+            
+            // 토큰에서 사용자 정보 추출
+            String email = jwtUtil.getEmailFromRefreshToken(refreshToken);
+            Long userId = jwtUtil.getUserIdFromRefreshToken(refreshToken);
+            
+            // 사용자 존재 확인
+            userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            
+            // 새로운 액세스 토큰 생성
+            String newAccessToken = jwtUtil.generateAccessToken(email, userId);
+            
+            log.info("액세스 토큰 갱신 완료: {}", email);
+            return newAccessToken;
+            
+        } catch (Exception e) {
+            log.error("액세스 토큰 갱신 실패: {}", e.getMessage(), e);
+            throw new RuntimeException("토큰 갱신에 실패했습니다.");
+        }
+    }
+    
+    /**
+     * 로그아웃 처리
+     */
+    public void logout() {
+        log.info("로그아웃 요청");
+        
+        try {
+            // 현재 사용자 정보 가져오기
+            String currentUserEmail = getCurrentUserEmail();
+            User user = userRepository.findByEmail(currentUserEmail)
+                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            
+            // 로그아웃 시간 업데이트 (선택사항)
+            user.setLastLoginAt(java.time.LocalDateTime.now());
+            userRepository.save(user);
+            
+            log.info("로그아웃 완료: {}", user.getEmail());
+            
+        } catch (Exception e) {
+            log.error("로그아웃 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("로그아웃 중 오류가 발생했습니다.");
+        }
     }
     
     /**

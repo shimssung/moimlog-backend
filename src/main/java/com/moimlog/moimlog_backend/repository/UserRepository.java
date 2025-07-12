@@ -37,4 +37,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 활성화된 사용자 정보 (Optional)
      */
     Optional<User> findByEmailAndIsActiveTrue(String email);
+    
+    /**
+     * 닉네임 중복 확인
+     * @param nickname 확인할 닉네임
+     * @return 중복 여부 (true: 중복, false: 중복 아님)
+     */
+    boolean existsByNickname(String nickname);
 } 
