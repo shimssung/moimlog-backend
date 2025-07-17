@@ -6,11 +6,17 @@ import com.moimlog.moimlog_backend.dto.request.EmailVerificationRequest;
 import com.moimlog.moimlog_backend.dto.request.SendVerificationRequest;
 import com.moimlog.moimlog_backend.dto.request.UpdateProfileRequest;
 import com.moimlog.moimlog_backend.dto.request.OnboardingRequest;
+import com.moimlog.moimlog_backend.dto.request.ForgotPasswordRequest;
+import com.moimlog.moimlog_backend.dto.request.ResetPasswordRequest;
+import com.moimlog.moimlog_backend.dto.request.VerifyResetCodeRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
 import com.moimlog.moimlog_backend.dto.response.UserProfileResponse;
 import com.moimlog.moimlog_backend.dto.response.OnboardingResponse;
+import com.moimlog.moimlog_backend.dto.response.ForgotPasswordResponse;
+import com.moimlog.moimlog_backend.dto.response.ResetPasswordResponse;
+import com.moimlog.moimlog_backend.dto.response.VerifyResetCodeResponse;
 import com.moimlog.moimlog_backend.entity.MoimCategory;
 import com.moimlog.moimlog_backend.service.UserService;
 import com.moimlog.moimlog_backend.service.S3Service;
@@ -143,6 +149,58 @@ public class AuthController {
         
         EmailVerificationResponse response = userService.verifyEmail(request);
         
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    /**
+     * 비밀번호 찾기 API
+     * @param request 비밀번호 찾기 요청 정보
+     * @return 처리 결과
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        log.info("비밀번호 찾기 API 호출: {}", request.getEmail());
+        
+        ForgotPasswordResponse response = userService.forgotPassword(request.getEmail());
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    /**
+     * 비밀번호 재설정 API
+     * @param request 비밀번호 재설정 요청 정보
+     * @return 처리 결과
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<ResetPasswordResponse> resetPassword(@RequestBody ResetPasswordRequest request) {
+        log.info("비밀번호 재설정 API 호출: {}", request.getEmail());
+        
+        ResetPasswordResponse response = userService.resetPassword(request);
+        
+        if (response.isSuccess()) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+    
+    /**
+     * 비밀번호 재설정 인증 코드 검증 API
+     * @param request 인증 코드 검증 요청 정보
+     * @return 검증 결과
+     */
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<VerifyResetCodeResponse> verifyResetCode(@RequestBody VerifyResetCodeRequest request) {
+        log.info("비밀번호 재설정 인증 코드 검증 API 호출: {}", request.getEmail());
+        VerifyResetCodeResponse response = userService.verifyResetCode(request);
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
         } else {

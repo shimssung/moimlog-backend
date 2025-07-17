@@ -94,6 +94,9 @@ public class SecurityConfig {
                 .requestMatchers("/auth/check-email").permitAll()
                 .requestMatchers("/auth/send-verification").permitAll()
                 .requestMatchers("/auth/verify-email").permitAll()
+                .requestMatchers("/auth/forgot-password").permitAll() // 비밀번호 찾기
+                .requestMatchers("/auth/verify-reset-code").permitAll() // 비밀번호 재설정 인증 코드 검증
+                .requestMatchers("/auth/reset-password").permitAll() // 비밀번호 재설정
                 .requestMatchers("/auth/check-nickname").permitAll() // 온보딩 중 닉네임 중복 체크
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()

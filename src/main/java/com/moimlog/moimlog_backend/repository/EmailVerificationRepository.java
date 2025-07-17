@@ -36,6 +36,12 @@ public interface EmailVerificationRepository extends JpaRepository<EmailVerifica
     Optional<EmailVerification> findLatestUnverifiedByEmail(@Param("email") String email);
     
     /**
+     * 이메일로 최신 인증 완료된 인증 정보 조회
+     */
+    @Query("SELECT ev FROM EmailVerification ev WHERE ev.email = :email AND ev.isVerified = true ORDER BY ev.createdAt DESC")
+    Optional<EmailVerification> findLatestVerifiedByEmail(@Param("email") String email);
+    
+    /**
      * 만료된 인증 정보 삭제
      */
     @Query("DELETE FROM EmailVerification ev WHERE ev.expiresAt < :now")

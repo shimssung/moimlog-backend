@@ -5,11 +5,17 @@ import com.moimlog.moimlog_backend.dto.request.SignupRequest;
 import com.moimlog.moimlog_backend.dto.request.EmailVerificationRequest;
 import com.moimlog.moimlog_backend.dto.request.UpdateProfileRequest;
 import com.moimlog.moimlog_backend.dto.request.OnboardingRequest;
+import com.moimlog.moimlog_backend.dto.request.ForgotPasswordRequest;
+import com.moimlog.moimlog_backend.dto.request.ResetPasswordRequest;
+import com.moimlog.moimlog_backend.dto.request.VerifyResetCodeRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
 import com.moimlog.moimlog_backend.dto.response.UserProfileResponse;
 import com.moimlog.moimlog_backend.dto.response.OnboardingResponse;
+import com.moimlog.moimlog_backend.dto.response.ForgotPasswordResponse;
+import com.moimlog.moimlog_backend.dto.response.ResetPasswordResponse;
+import com.moimlog.moimlog_backend.dto.response.VerifyResetCodeResponse;
 import com.moimlog.moimlog_backend.entity.User;
 import com.moimlog.moimlog_backend.entity.EmailVerification;
 import com.moimlog.moimlog_backend.entity.MoimCategory;
@@ -500,6 +506,138 @@ public class UserService {
         } catch (Exception e) {
             log.error("로그아웃 중 오류 발생: {}", e.getMessage(), e);
             throw new RuntimeException("로그아웃 중 오류가 발생했습니다.");
+        }
+    }
+    
+    /**
+     * 비밀번호 찾기 요청 처리
+     * @param email 비밀번호를 찾을 이메일
+     * @return 처리 결과
+     */
+    public ForgotPasswordResponse forgotPassword(String email) {
+        log.info("비밀번호 찾기 요청: {}", email);
+        
+        try {
+            // 사용자 존재 확인
+            User user = userRepository.findByEmailAndIsActiveTrue(email)
+                    .orElse(null);
+            
+            if (user == null) {
+                log.warn("존재하지 않는 사용자: {}", email);
+                return ForgotPasswordResponse.failure("해당 이메일로 가입된 계정을 찾을 수 없습니다.");
+            }
+            
+            // 기존 비밀번호 재설정 인증 코드 삭제
+            emailVerificationRepository.deleteByEmail(email);
+            
+            // 6자리 인증 코드 생성
+            String verificationCode = generateVerificationCode();
+            
+            // 인증 정보 저장
+            EmailVerification verification = EmailVerification.createVerification(email, verificationCode);
+            emailVerificationRepository.save(verification);
+            
+            // 비밀번호 재설정 이메일 발송
+            emailService.sendPasswordResetEmail(email, verificationCode);
+            
+            log.info("비밀번호 재설정 이메일 발송 완료: {}", email);
+            return ForgotPasswordResponse.success(email);
+            
+        } catch (Exception e) {
+            log.error("비밀번호 찾기 처리 실패: {}", email, e);
+            return ForgotPasswordResponse.failure("비밀번호 재설정 이메일 발송에 실패했습니다.");
+        }
+    }
+    
+    /**
+     * 비밀번호 재설정용 인증 코드 검증
+     * @param request 인증 코드 검증 요청 정보
+     * @return 검증 결과
+     */
+    public VerifyResetCodeResponse verifyResetCode(VerifyResetCodeRequest request) {
+        log.info("비밀번호 재설정 인증 코드 검증 요청: {}", request.getEmail());
+        
+        try {
+            // 사용자 존재 확인
+            User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail())
+                    .orElse(null);
+            
+            if (user == null) {
+                return VerifyResetCodeResponse.failure("해당 이메일로 가입된 계정을 찾을 수 없습니다.");
+            }
+            
+            // 인증 코드 검증
+            EmailVerification verification = emailVerificationRepository
+                    .findLatestUnverifiedByEmail(request.getEmail())
+                    .orElse(null);
+            
+            if (verification == null) {
+                return VerifyResetCodeResponse.failure("인증 코드를 찾을 수 없습니다. 다시 발송해주세요.");
+            }
+            
+            if (!verification.isValidCode(request.getVerificationCode())) {
+                return VerifyResetCodeResponse.failure("인증 코드가 올바르지 않거나 만료되었습니다.");
+            }
+            
+            // 인증 완료 처리 (비밀번호 재설정용)
+            verification.verify();
+            emailVerificationRepository.save(verification);
+            
+            log.info("비밀번호 재설정 인증 코드 검증 완료: {}", request.getEmail());
+            return VerifyResetCodeResponse.success(request.getEmail());
+            
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 인증 코드 검증 중 오류 발생: {}", e.getMessage(), e);
+            return VerifyResetCodeResponse.failure("인증 코드 검증 중 오류가 발생했습니다.");
+        }
+    }
+    
+    /**
+     * 비밀번호 재설정 처리 (인증 완료 후)
+     * @param request 비밀번호 재설정 요청 정보
+     * @return 처리 결과
+     */
+    @Transactional
+    public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
+        log.info("비밀번호 재설정 요청: {}", request.getEmail());
+        
+        try {
+            // 비밀번호 확인 일치 검증
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return ResetPasswordResponse.failure("새 비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+            }
+            
+            // 사용자 존재 확인
+            User user = userRepository.findByEmailAndIsActiveTrue(request.getEmail())
+                    .orElse(null);
+            
+            if (user == null) {
+                return ResetPasswordResponse.failure("해당 이메일로 가입된 계정을 찾을 수 없습니다.");
+            }
+            
+            // 인증 완료 상태 확인
+            EmailVerification verification = emailVerificationRepository
+                    .findLatestVerifiedByEmail(request.getEmail())
+                    .orElse(null);
+            
+            if (verification == null) {
+                return ResetPasswordResponse.failure("인증이 완료되지 않았습니다. 인증 코드를 먼저 확인해주세요.");
+            }
+            
+            // 비밀번호 업데이트
+            String encodedPassword = passwordEncoder.encode(request.getNewPassword());
+            user.setPassword(encodedPassword);
+            userRepository.save(user);
+            
+            // 인증 정보 삭제
+            emailVerificationRepository.deleteByEmail(request.getEmail());
+            
+            log.info("비밀번호 재설정 완료: {}", request.getEmail());
+            return ResetPasswordResponse.success(request.getEmail());
+            
+        } catch (Exception e) {
+            log.error("비밀번호 재설정 중 오류 발생: {}", e.getMessage(), e);
+            return ResetPasswordResponse.failure("비밀번호 재설정 중 오류가 발생했습니다.");
         }
     }
     
