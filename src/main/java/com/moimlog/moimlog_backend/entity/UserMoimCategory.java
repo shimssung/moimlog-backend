@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  * 사용자와 모임 카테고리의 다대다 관계를 관리하는 테이블
  */
 @Entity
-@Table(name = "user_interests")
+@Table(name = "user_moim_categories")
 @Getter
 @Setter
 @NoArgsConstructor

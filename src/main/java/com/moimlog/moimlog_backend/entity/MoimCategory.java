@@ -34,6 +34,10 @@ public class MoimCategory {
     @Column(name = "color", length = 20)
     private String color;
     
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
+    
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
     
@@ -50,6 +54,7 @@ public class MoimCategory {
                 .label(label)
                 .description(description)
                 .color(color)
+                .isActive(true)
                 .build();
     }
 

@@ -4,6 +4,8 @@
 
 MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으로 합니다.
 
+**현재 구현 상태**: ✅ Phase 1 완료 (기본 인프라)
+
 ---
 
 ## 🔐 인증 관련 API
@@ -69,8 +71,8 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ### 3. 토큰 갱신
 
 - **URL**: `POST /auth/refresh`
-- **설명**: 액세스 토큰 갱신
-- **요청 파라미터**: `refreshToken`
+- **설명**: 액세스 토큰 갱신 (쿠키의 refreshToken 사용)
+- **요청 헤더**: 쿠키에서 refreshToken 자동 전송
 - **응답**:
 
 ```json
@@ -83,6 +85,10 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 - **URL**: `POST /auth/logout`
 - **설명**: 사용자 로그아웃
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  ```
 - **응답**:
 
 ```json
@@ -96,6 +102,10 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 - **URL**: `GET /auth/me`
 - **설명**: 현재 로그인한 사용자 정보 조회
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  ```
 - **응답**:
 
 ```json
@@ -180,6 +190,79 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 ---
 
+## 🔑 비밀번호 재설정 관련 API
+
+### 1. 비밀번호 찾기
+
+- **URL**: `POST /auth/forgot-password`
+- **설명**: 비밀번호 재설정 이메일 발송
+- **요청 본문**:
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+- **응답**:
+
+```json
+{
+  "success": true,
+  "message": "비밀번호 재설정 이메일이 발송되었습니다.",
+  "email": "user@example.com"
+}
+```
+
+### 2. 비밀번호 재설정 인증 코드 검증
+
+- **URL**: `POST /auth/verify-reset-code`
+- **설명**: 비밀번호 재설정 인증 코드 검증
+- **요청 본문**:
+
+```json
+{
+  "email": "user@example.com",
+  "verificationCode": "123456"
+}
+```
+
+- **응답**:
+
+```json
+{
+  "success": true,
+  "message": "인증 코드가 확인되었습니다.",
+  "email": "user@example.com"
+}
+```
+
+### 3. 비밀번호 재설정
+
+- **URL**: `POST /auth/reset-password`
+- **설명**: 새 비밀번호로 변경
+- **요청 본문**:
+
+```json
+{
+  "email": "user@example.com",
+  "verificationCode": "123456",
+  "newPassword": "newpassword123"
+}
+```
+
+- **응답**:
+
+```json
+{
+  "success": true,
+  "message": "비밀번호가 성공적으로 변경되었습니다.",
+  "email": "user@example.com"
+}
+```
+
+---
+
 ## 🎯 온보딩 관련 API
 
 ### 1. 온보딩 처리
@@ -234,10 +317,6 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 - **URL**: `GET /auth/check-nickname?nickname=길동이`
 - **설명**: 닉네임 중복 확인
-- **요청 헤더**:
-  ```
-  Authorization: Bearer {accessToken}
-  ```
 - **응답 (사용 가능한 경우)**:
 
 ```json
@@ -276,10 +355,6 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 - **URL**: `GET /auth/moim-categories`
 - **설명**: 시스템에 등록된 모든 모임 카테고리 목록 조회
-- **요청 헤더**:
-  ```
-  Authorization: Bearer {accessToken}
-  ```
 - **응답**:
 
 ```json
@@ -377,6 +452,11 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 - **URL**: `PUT /auth/profile`
 - **설명**: 사용자 프로필 정보 수정
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  Content-Type: application/json
+  ```
 - **요청 본문**:
 
 ```json
@@ -409,6 +489,26 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 }
 ```
 
+### 2. 프로필 이미지 업로드
+
+- **URL**: `POST /auth/upload-profile-image`
+- **설명**: 프로필 이미지 파일 업로드
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  Content-Type: multipart/form-data
+  ```
+- **요청 파라미터**:
+  - `file`: 이미지 파일 (MultipartFile)
+- **응답**:
+
+```json
+{
+  "success": true,
+  "imageUrl": "https://moimlog-bucket.s3.ap-southeast-2.amazonaws.com/profile-images/..."
+}
+```
+
 ---
 
 ## 🔧 기술적 세부사항
@@ -416,7 +516,7 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ### 인증 방식
 
 - JWT (JSON Web Token) 사용
-- Access Token: 30분 만료
+- Access Token: 1시간 만료
 - Refresh Token: 7일 만료 (HttpOnly 쿠키)
 
 ### AWS S3 이미지 업로드
@@ -430,7 +530,8 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ```json
 {
   "success": false,
-  "message": "에러 메시지"
+  "message": "에러 메시지",
+  "errorCode": "ERROR_CODE"
 }
 ```
 
@@ -446,15 +547,47 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 ### CORS 설정
 
-- 모든 도메인 허용 (`*`)
-- 개발 환경에서 테스트 가능
+- 개발 환경: `http://localhost:3000`, `http://127.0.0.1:3000` 허용
+- 프로덕션 환경에서 추가 설정 필요
+
+### 컨텍스트 패스
+
+- 서버 컨텍스트 패스: `/moimlog`
+- 프론트엔드 요청 시: `http://localhost:8080/auth/...` (컨텍스트 패스 제외)
 
 ---
 
 ## 📝 참고사항
 
 1. **토큰 사용**: 인증이 필요한 API 호출 시 `Authorization: Bearer {accessToken}` 헤더 포함
-2. **이미지 업로드**: Base64 인코딩된 문자열로 전송, S3에 업로드 후 URL 반환
+2. **이미지 업로드**: Base64 인코딩된 문자열 또는 MultipartFile 지원
 3. **모임 카테고리**: 10가지 기본 모임 카테고리 제공
 4. **온보딩**: 로그인 후 온보딩 완료 여부에 따라 리다이렉트 처리 필요
 5. **데이터베이스**: `user_interests` 테이블을 사용하여 사용자-카테고리 매핑 관리
+6. **보안**: JWT 필터에서 공개 엔드포인트는 인증 검증 건너뛰기
+
+---
+
+## 🚧 향후 개발 예정 API
+
+### 모임 관련 (Phase 2)
+- 모임 생성, 수정, 삭제, 조회
+- 모임 가입, 탈퇴
+- 모임 멤버 관리
+
+### 게시판 관련 (Phase 2)
+- 게시글 작성, 수정, 삭제, 조회
+- 댓글 시스템
+- 좋아요 기능
+
+### 일정 관리 (Phase 3)
+- 일정 생성, 수정, 삭제
+- 일정 참석 관리
+
+### 채팅 시스템 (Phase 3)
+- 실시간 채팅
+- WebSocket 연동
+
+### 알림 시스템 (Phase 3)
+- 실시간 알림
+- 푸시 알림
