@@ -33,6 +33,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+        log.debug("JWT 필터 체크 - 요청 경로: {}", path);
+
+        boolean shouldNotFilter =  path.contains("/auth/signup") ||
+                                    path.contains("/auth/login") ||
+                                    path.contains("/auth/check-email") ||
+                                    path.contains("/auth/send-verification") ||
+                                    path.contains("/auth/verify-email") ||
+                                    path.contains("/auth/forgot-password") ||
+                                    path.contains("/auth/verify-reset-code") ||
+                                    path.contains("/auth/reset-password") ||
+                                    path.contains("/auth/check-nickname") ||
+                                    path.contains("/auth/refresh") ||
+                                    path.contains("/h2-console") ||
+                                    path.contains("/error");
+
+        log.debug("JWT 필터 적용 여부: {}", !shouldNotFilter);
+        return shouldNotFilter;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, 
                                   HttpServletResponse response, 
                                   FilterChain filterChain) throws ServletException, IOException {

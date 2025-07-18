@@ -98,6 +98,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/verify-reset-code").permitAll() // 비밀번호 재설정 인증 코드 검증
                 .requestMatchers("/auth/reset-password").permitAll() // 비밀번호 재설정
                 .requestMatchers("/auth/check-nickname").permitAll() // 온보딩 중 닉네임 중복 체크
+                .requestMatchers("/auth/refresh").permitAll() // 토큰 갱신 (인증 불필요)
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()
                 
@@ -108,7 +109,6 @@ public class SecurityConfig {
                 .requestMatchers("/auth/onboarding/status").authenticated()
                 .requestMatchers("/auth/user-categories").authenticated()
                 .requestMatchers("/auth/moim-categories").authenticated()
-                .requestMatchers("/auth/refresh").authenticated()
                 .requestMatchers("/auth/logout").authenticated()
                 .requestMatchers("/auth/upload-profile-image").authenticated()
                 
