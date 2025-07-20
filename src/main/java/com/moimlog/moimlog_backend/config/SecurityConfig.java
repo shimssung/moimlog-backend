@@ -2,6 +2,10 @@ package com.moimlog.moimlog_backend.config;
 
 import com.moimlog.moimlog_backend.repository.UserRepository;
 import com.moimlog.moimlog_backend.util.JwtUtil;
+import com.moimlog.moimlog_backend.service.OAuth2Service;
+import com.moimlog.moimlog_backend.entity.User;
+import com.moimlog.moimlog_backend.dto.response.LoginResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,6 +17,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -30,6 +36,7 @@ import java.util.Arrays;
  */
 @Configuration
 @EnableWebSecurity // Spring Security 활성화
+@Slf4j
 
 // final 필드들을 매개변수로 받는 생성자를 자동 생성
 // Spring의 의존성 주입(DI)을 위한 편의 기능
@@ -37,10 +44,12 @@ public class SecurityConfig {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
+    private final OAuth2Service oAuth2Service;
     
-    public SecurityConfig(UserRepository userRepository, JwtUtil jwtUtil) {
+    public SecurityConfig(UserRepository userRepository, JwtUtil jwtUtil, OAuth2Service oAuth2Service) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
+        this.oAuth2Service = oAuth2Service;
     }
 
     /**
@@ -63,6 +72,16 @@ public class SecurityConfig {
         return username -> userRepository.findByEmailAndIsActiveTrue(username)
                 // 사용자가 있으면 User 반환, 없으면 예외 발생
                 .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + username));
+    }
+    
+    /**
+     * OAuth2UserService 빈 등록
+     * 
+     * @return DefaultOAuth2UserService 인스턴스
+     */
+    @Bean
+    DefaultOAuth2UserService oAuth2UserService() {
+        return new DefaultOAuth2UserService();
     }
 
     /**
@@ -102,6 +121,10 @@ public class SecurityConfig {
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()
                 
+                // OAuth2 관련 URL (인증 불필요)
+                .requestMatchers("/oauth2/**").permitAll()
+                .requestMatchers("/oauth2/authorization/**").permitAll()
+                
                 // 인증이 필요한 API
                 .requestMatchers("/auth/me").authenticated()
                 .requestMatchers("/auth/profile").authenticated()
@@ -117,6 +140,42 @@ public class SecurityConfig {
                 
                 // 나머지는 인증된 사용자만 접근 가능
                 .anyRequest().authenticated()
+            )
+            
+            // OAuth2 로그인 설정
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(oAuth2UserService())
+                )
+                .successHandler((request, response, authentication) -> {
+                    // OAuth2 로그인 성공 시 프론트엔드로 리다이렉트
+                    if (authentication.getPrincipal() instanceof OAuth2User) {
+                        OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
+                        
+                        // OAuth2Service를 통해 사용자 처리
+                        User user = oAuth2Service.processGoogleUser(oauth2User.getAttributes());
+                        LoginResponse loginResponse = oAuth2Service.createLoginResponse(user);
+                        
+                        // 로그 추가
+                        log.info("OAuth2 로그인 성공 - 사용자: {}, 온보딩완료: {}, 리다이렉트URL: {}", 
+                            user.getEmail(), user.getIsOnboardingCompleted(), 
+                            "http://localhost:3000/oauth2-callback?token=" + loginResponse.getAccessToken().substring(0, 20) + "...");
+                        
+                        // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
+                        String redirectUrl = "http://localhost:3000/oauth2-callback?token=" + loginResponse.getAccessToken();
+                        response.sendRedirect(redirectUrl);
+                    } else {
+                        // 오류 시 프론트엔드로 리다이렉트 (오류 파라미터 포함)
+                        String redirectUrl = "http://localhost:3000/oauth2-callback?error=oauth2_user_not_found";
+                        response.sendRedirect(redirectUrl);
+                    }
+                })
+                .failureHandler((request, response, exception) -> {
+                    // OAuth2 로그인 실패 시 프론트엔드로 리다이렉트
+                    String redirectUrl = "http://localhost:3000/oauth2-callback?error=oauth2_login_failed&message=" + 
+                        java.net.URLEncoder.encode(exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+                    response.sendRedirect(redirectUrl);
+                })
             )
             
             // HTTP Basic 인증 비활성화 (JWT 사용 예정)

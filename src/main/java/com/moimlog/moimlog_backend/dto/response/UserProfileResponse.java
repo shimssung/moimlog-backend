@@ -27,6 +27,7 @@ public class UserProfileResponse {
     private LocalDate birthDate;
     private User.Gender gender;
     private boolean isVerified;
+    private boolean isOnboardingCompleted;
     private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;
     
@@ -42,6 +43,7 @@ public class UserProfileResponse {
                 .birthDate(user.getBirthDate())
                 .gender(user.getGender())
                 .isVerified(user.getIsVerified())
+                .isOnboardingCompleted(user.getIsOnboardingCompleted())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
                 .build();

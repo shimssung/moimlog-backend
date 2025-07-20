@@ -217,6 +217,9 @@ public class AuthController {
         log.info("내 프로필 조회 API 호출");
         
         UserProfileResponse response = userService.getMyProfile();
+        log.info("프로필 응답 - 사용자: {}, 온보딩완료: {}", 
+            response.getEmail(), response.isOnboardingCompleted());
+        
         return ResponseEntity.ok(response);
     }
     

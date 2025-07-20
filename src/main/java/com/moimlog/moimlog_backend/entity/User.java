@@ -78,6 +78,12 @@ public class User implements UserDetails {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
     
+    @Column(name = "oauth_provider", length = 20)
+    private String oauthProvider; // "google", "kakao", "naver"
+    
+    @Column(name = "oauth_provider_id", length = 255)
+    private String oauthProviderId;
+    
     // Spring Security UserDetails 구현
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -119,6 +125,24 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return isActive;
+    }
+    
+    // 소셜 로그인 여부 확인
+    public boolean isSocialLogin() {
+        return oauthProvider != null && !oauthProvider.isEmpty();
+    }
+    
+    // 소셜 로그인 사용자 생성
+    public static User createSocialUser(String email, String name, String oauthProvider, String oauthProviderId) {
+        return User.builder()
+                .email(email)
+                .name(name)
+                .oauthProvider(oauthProvider)
+                .oauthProviderId(oauthProviderId)
+                .isActive(true)
+                .isVerified(true) // 소셜 로그인은 이메일 인증 완료로 간주
+                .isOnboardingCompleted(false)
+                .build();
     }
     
     // JPA 생명주기 메서드
