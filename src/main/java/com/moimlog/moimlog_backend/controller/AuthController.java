@@ -22,6 +22,7 @@ import com.moimlog.moimlog_backend.service.UserService;
 import com.moimlog.moimlog_backend.service.S3Service;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,11 +81,11 @@ public class AuthController {
         LoginResponse response = userService.login(loginRequest);
         
         if (response.isSuccess()) {
-            // HttpOnly + Secure 쿠키 설정
+            // Refresh Token만 HttpOnly 쿠키로 설정 (accessToken은 메모리에만 저장)
             ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", response.getRefreshToken())
                 .httpOnly(true)
-                .secure(true) // HTTPS에서만
-                .sameSite("Strict")
+                .secure(false) // 개발환경에서는 false
+                .sameSite("Lax")
                 .maxAge(Duration.ofDays(7)) // 7일
                 .path("/")
                 .build();
@@ -326,22 +327,29 @@ public class AuthController {
             for (Cookie cookie : cookies) {
                 if ("refreshToken".equals(cookie.getName())) {
                     refreshToken = cookie.getValue();
+                    log.debug("리프레시 토큰 발견: {}", refreshToken.substring(0, Math.min(20, refreshToken.length())) + "...");
                     break;
                 }
             }
         }
         
         if (refreshToken == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            log.warn("리프레시 토큰이 쿠키에 없습니다");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "리프레시 토큰이 없습니다"));
         }
         
         try {
             String newAccessToken = userService.refreshAccessToken(refreshToken);
+            log.info("토큰 갱신 성공");
+            
+            // accessToken은 메모리에만 저장하므로 쿠키 설정 안함
             return ResponseEntity.ok()
                     .body(new TokenRefreshResponse(newAccessToken));
         } catch (Exception e) {
-            log.error("토큰 갱신 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            log.error("토큰 갱신 실패: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "토큰 갱신에 실패했습니다: " + e.getMessage()));
         }
     }
     
@@ -357,17 +365,17 @@ public class AuthController {
         try {
             userService.logout();
             
-            // 쿠키 삭제
-            ResponseCookie deleteCookie = ResponseCookie.from("refreshToken", "")
+            // refreshToken 쿠키만 삭제 (accessToken은 메모리에만 저장됨)
+            ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(false) // 개발환경에서는 false
+                .sameSite("Lax")
                 .maxAge(0) // 즉시 만료
                 .path("/")
                 .build();
             
             return ResponseEntity.ok()
-                    .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                    .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
                     .body(new LogoutResponse(true, "로그아웃이 완료되었습니다."));
         } catch (Exception e) {
             log.error("로그아웃 실패: {}", e.getMessage());

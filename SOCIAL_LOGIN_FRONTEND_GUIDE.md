@@ -132,20 +132,62 @@ const OAuth2CallbackPage = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // URL 파라미터에서 토큰 확인
+        // URL 파라미터에서 성공/실패 확인
         const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get("token");
+        const success = urlParams.get("success");
+        const errorParam = urlParams.get("error");
 
-        if (token) {
-          // 토큰을 로컬 스토리지에 저장
-          localStorage.setItem("accessToken", token);
+        if (errorParam) {
+          setError("로그인에 실패했습니다: " + errorParam);
+          return;
+        }
 
-          // 사용자 정보를 상태에 저장 (선택사항)
-          // const userInfo = JSON.parse(urlParams.get('user') || '{}');
-          // localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        if (success) {
+          // 쿠키에서 액세스 토큰 읽기
+          const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(";").shift();
+            return null;
+          };
 
-          // 메인 페이지로 리다이렉트
-          router.push("/");
+          const accessToken = getCookie("accessToken");
+
+          if (accessToken) {
+            // 토큰을 localStorage에도 저장
+            localStorage.setItem("accessToken", accessToken);
+
+            // 사용자 정보 조회
+            try {
+              const response = await fetch(
+                "http://localhost:8080/moimlog/auth/me",
+                {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                  credentials: "include",
+                }
+              );
+
+              if (response.ok) {
+                const userData = await response.json();
+
+                // 온보딩 완료 여부에 따라 리다이렉트
+                if (userData.isOnboardingCompleted) {
+                  router.push("/dashboard");
+                } else {
+                  router.push("/onboarding");
+                }
+              } else {
+                throw new Error("사용자 정보 조회 실패");
+              }
+            } catch (fetchError) {
+              console.error("사용자 정보 조회 실패:", fetchError);
+              setError("사용자 정보를 가져오는데 실패했습니다.");
+            }
+          } else {
+            setError("액세스 토큰을 찾을 수 없습니다.");
+          }
         } else {
           setError("로그인에 실패했습니다.");
         }
@@ -413,48 +455,135 @@ export const apiClient = {
 };
 ```
 
-### **3. 인증 상태 관리**
+### **3. 개선된 인증 상태 관리**
 
 ```javascript
 // hooks/useAuth.js
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      // 토큰이 있으면 사용자 정보 조회
-      fetchUserInfo(token);
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
+  // 쿠키에서 토큰 읽기
+  const getCookie = (name) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(";").shift();
+    return null;
+  };
 
-  const fetchUserInfo = async (token) => {
+  // 토큰 갱신 함수
+  const refreshToken = useCallback(async () => {
+    if (isRefreshing) return null; // 이미 갱신 중이면 중복 요청 방지
+
+    setIsRefreshing(true);
     try {
-      const response = await fetch("http://localhost:8080/moimlog/auth/me", {
+      const response = await fetch(
+        "http://localhost:8080/moimlog/auth/refresh",
+        {
+          method: "POST",
+          credentials: "include", // 쿠키 포함
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const newAccessToken = data.accessToken;
+
+        // 새로운 액세스 토큰을 localStorage에 저장
+        localStorage.setItem("accessToken", newAccessToken);
+
+        // 쿠키에서도 읽어올 수 있도록 설정
+        document.cookie = `accessToken=${newAccessToken}; path=/; max-age=3600; SameSite=Lax`;
+
+        return newAccessToken;
+      } else {
+        // 토큰 갱신 실패 시 로그아웃
+        logout();
+        return null;
+      }
+    } catch (error) {
+      console.error("토큰 갱신 실패:", error);
+      logout();
+      return null;
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing]);
+
+  // API 요청 래퍼 함수
+  const apiRequest = useCallback(
+    async (url, options = {}) => {
+      let token =
+        localStorage.getItem("accessToken") || getCookie("accessToken");
+
+      if (!token) {
+        throw new Error("토큰이 없습니다");
+      }
+
+      const response = await fetch(url, {
+        ...options,
         headers: {
+          ...options.headers,
           Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
       });
 
+      if (response.status === 401) {
+        // 토큰이 만료되었으면 갱신 시도
+        const newToken = await refreshToken();
+        if (newToken) {
+          // 새로운 토큰으로 재요청
+          return fetch(url, {
+            ...options,
+            headers: {
+              ...options.headers,
+              Authorization: `Bearer ${newToken}`,
+            },
+            credentials: "include",
+          });
+        } else {
+          throw new Error("인증에 실패했습니다");
+        }
+      }
+
+      return response;
+    },
+    [refreshToken]
+  );
+
+  // 사용자 정보 조회
+  const fetchUserInfo = useCallback(async () => {
+    try {
+      const response = await apiRequest(
+        "http://localhost:8080/moimlog/auth/me"
+      );
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+        return userData;
       } else {
-        // 토큰이 유효하지 않으면 제거
-        localStorage.removeItem("accessToken");
+        throw new Error("사용자 정보 조회 실패");
       }
     } catch (error) {
       console.error("사용자 정보 조회 실패:", error);
-      localStorage.removeItem("accessToken");
-    } finally {
+      logout();
+      return null;
+    }
+  }, [apiRequest]);
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem("accessToken") || getCookie("accessToken");
+    if (token) {
+      fetchUserInfo().finally(() => setIsLoading(false));
+    } else {
       setIsLoading(false);
     }
-  };
+  }, [fetchUserInfo]);
 
   const login = (token, userData) => {
     localStorage.setItem("accessToken", token);
@@ -463,6 +592,11 @@ export const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem("accessToken");
+    // 쿠키도 삭제
+    document.cookie =
+      "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie =
+      "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     setUser(null);
   };
 
@@ -471,6 +605,8 @@ export const useAuth = () => {
     isLoading,
     login,
     logout,
+    apiRequest,
+    refreshToken,
   };
 };
 ```
