@@ -103,11 +103,9 @@ public class SecurityConfig {
             // CORS 설정
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             
-            // 세션 관리 설정
+            // 세션 관리 설정 - JWT 기반 인증이므로 STATELESS만 설정
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                .sessionFixation().migrateSession()
-                .maximumSessions(1)
             )
             
             // URL별 접근 권한 설정
