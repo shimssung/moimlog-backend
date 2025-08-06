@@ -27,6 +27,7 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
 import java.util.Arrays;
+import java.time.Duration;
 
 /**
  * Spring Security 설정 클래스
@@ -110,7 +111,7 @@ public class SecurityConfig {
             // CORS 설정
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             
-            // 세션 관리 설정
+            // 세션 관리 설정 - JWT 기반 인증이므로 STATELESS만 설정
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
@@ -167,12 +168,21 @@ public class SecurityConfig {
                         LoginResponse loginResponse = oAuth2Service.createLoginResponse(user);
                         
                         // 로그 추가
-                        log.info("OAuth2 로그인 성공 - 사용자: {}, 온보딩완료: {}, 리다이렉트URL: {}", 
-                            user.getEmail(), user.getIsOnboardingCompleted(), 
-                            "http://localhost:3000/oauth2-callback?token=" + loginResponse.getAccessToken().substring(0, 20) + "...");
+                        log.info("OAuth2 로그인 성공 - 사용자: {}, 온보딩완료: {}", 
+                            user.getEmail(), user.getIsOnboardingCompleted());
                         
-                        // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
-                        String redirectUrl = "http://localhost:3000/oauth2-callback?token=" + loginResponse.getAccessToken();
+                        // Refresh Token만 HttpOnly 쿠키로 설정 (accessToken은 메모리에만 저장)
+                        ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", loginResponse.getRefreshToken())
+                                .httpOnly(true)
+                                .secure(false) // 개발환경에서는 false
+                                .sameSite("Lax")
+                                .maxAge(Duration.ofDays(7)) // 7일
+                                .path("/")
+                                .build();
+                        
+                        // 프론트엔드로 리다이렉트 (Refresh Token만 쿠키로 전달)
+                        String redirectUrl = "http://localhost:3000/oauth2-callback?success=true";
+                        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
                         response.sendRedirect(redirectUrl);
                     } else {
                         // 오류 시 프론트엔드로 리다이렉트 (오류 파라미터 포함)

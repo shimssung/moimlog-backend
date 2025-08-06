@@ -522,8 +522,9 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ### 인증 방식
 
 - JWT (JSON Web Token) 사용
-- Access Token: 1시간 만료
+- Access Token: 1시간 만료 (메모리에만 저장)
 - Refresh Token: 7일 만료 (HttpOnly 쿠키)
+- 보안 강화: XSS/CSRF 공격 방지를 위해 Access Token을 쿠키에서 제거
 
 ### AWS S3 이미지 업로드
 
@@ -577,23 +578,28 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ## 🚧 향후 개발 예정 API
 
 ### 모임 관련 (Phase 2)
+
 - 모임 생성, 수정, 삭제, 조회
 - 모임 가입, 탈퇴
 - 모임 멤버 관리
 
 ### 게시판 관련 (Phase 2)
+
 - 게시글 작성, 수정, 삭제, 조회
 - 댓글 시스템
 - 좋아요 기능
 
 ### 일정 관리 (Phase 3)
+
 - 일정 생성, 수정, 삭제
 - 일정 참석 관리
 
 ### 채팅 시스템 (Phase 3)
+
 - 실시간 채팅
 - WebSocket 연동
 
 ### 알림 시스템 (Phase 3)
+
 - 실시간 알림
 - 푸시 알림
