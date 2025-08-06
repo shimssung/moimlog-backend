@@ -22,6 +22,9 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
 
 import java.util.Arrays;
 
@@ -45,11 +48,18 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final OAuth2Service oAuth2Service;
+    private final AuthenticationEntryPoint customAuthEntryPoint;
+    private final AccessDeniedHandler customAccessDeniedHandler;
     
-    public SecurityConfig(UserRepository userRepository, JwtUtil jwtUtil, OAuth2Service oAuth2Service) {
+    @Autowired
+    public SecurityConfig(UserRepository userRepository, JwtUtil jwtUtil, OAuth2Service oAuth2Service,
+                          AuthenticationEntryPoint customAuthEntryPoint,
+                          AccessDeniedHandler customAccessDeniedHandler) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.oAuth2Service = oAuth2Service;
+        this.customAuthEntryPoint = customAuthEntryPoint;
+        this.customAccessDeniedHandler = customAccessDeniedHandler;
     }
 
     /**
@@ -182,7 +192,11 @@ public class SecurityConfig {
             .httpBasic(httpBasic -> httpBasic.disable())
             
             // JWT 필터 추가
-            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService()), UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, userDetailsService()), UsernamePasswordAuthenticationFilter.class)
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(customAuthEntryPoint)
+                .accessDeniedHandler(customAccessDeniedHandler)
+            );
         
         return http.build();
     }

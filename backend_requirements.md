@@ -6,7 +6,7 @@
 **프로젝트 타입**: 모임 관리 플랫폼  
 **프론트엔드**: Next.js (React)  
 **백엔드**: Java + Spring Boot  
-**데이터베이스**: MySQL (Railway)  
+**데이터베이스**: MySQL (AWS RDS)  
 **파일 저장소**: AWS S3
 
 **현재 개발 상태**: ✅ Phase 1 완료, 🚀 Phase 2 준비 중
@@ -18,7 +18,7 @@
 ### 전체 구조
 
 ```
-Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL - Railway)
+Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL - AWS RDS)
                                     ↓
                               AWS S3 (파일 저장)
 ```
@@ -55,6 +55,8 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL - Railway
   "isVerified": false,
   "isOnboardingCompleted": true,
   "lastLoginAt": "2025-07-01T10:30:00",
+  "oauthProvider": "GOOGLE|KAKAO|NAVER",
+  "oauthProviderId": "oauth_provider_user_id",
   "createdAt": "2025-06-01T00:00:00",
   "updatedAt": "2025-07-01T10:30:00"
 }
@@ -86,6 +88,7 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL - Railway
   "label": "운동/스포츠",
   "description": "다양한 운동과 스포츠 활동",
   "color": "#10b981",
+  "isActive": true,
   "createdAt": "2025-07-12T09:00:00"
 }
 ```
@@ -203,9 +206,9 @@ POST   /auth/user-interests           # 사용자 관심사 설정 🚧
 ### 소셜 로그인 (예정)
 
 ```
-GET    /auth/oauth2/google            # Google 로그인 🚧
-GET    /auth/oauth2/kakao             # Kakao 로그인 🚧
-GET    /auth/oauth2/naver             # Naver 로그인 🚧
+GET    /oauth2/google/callback        # Google 로그인 콜백 🚧
+GET    /oauth2/kakao/callback         # Kakao 로그인 콜백 🚧
+GET    /oauth2/naver/callback         # Naver 로그인 콜백 🚧
 ```
 
 ### 모임 관련 (Phase 2 예정)
@@ -283,7 +286,7 @@ DELETE /notifications/{id}            # 알림 삭제 🚧
 - **Spring Boot Mail** ✅
 - **Spring Boot Validation** ✅
 - **Spring OAuth2 Client** 🚧
-- **MySQL 8.0 (Railway)** ✅
+- **MySQL 8.0 (AWS RDS)** ✅
 - **JWT (jjwt 0.11.5)** ✅
 - **AWS SDK for Java** ✅
 - **Lombok** ✅
@@ -300,7 +303,7 @@ DELETE /notifications/{id}            # 알림 삭제 🚧
 - **Railway** - 백엔드 배포 ✅
 - **Vercel** - 프론트엔드 배포 🚧
 - **AWS S3** - 파일 저장소 ✅
-- **Railway MySQL** - 데이터베이스 ✅
+- **AWS RDS** - 데이터베이스 ✅
 
 ---
 
@@ -320,6 +323,7 @@ DELETE /notifications/{id}            # 알림 삭제 🚧
 10. **전역 예외 처리** - 일관된 에러 응답 ✅
 11. **Spring Security 설정** - JWT 필터 및 권한 관리 ✅
 12. **비밀번호 재설정** - 이메일 기반 비밀번호 재설정 ✅
+13. **OAuth2 소셜 로그인** - Google, Kakao, Naver 로그인 🚧
 
 ### Phase 2: 핵심 기능 (다음 단계)
 
@@ -333,7 +337,6 @@ DELETE /notifications/{id}            # 알림 삭제 🚧
 1. **일정 관리** - 일정 CRUD, 참석 관리 🚧
 2. **채팅 시스템** - WebSocket 기반 실시간 채팅 🚧
 3. **알림 시스템** - 실시간 알림 🚧
-4. **소셜 로그인** - Google, Kakao, Naver OAuth2 🚧
 
 ### Phase 4: 관리 기능 (예정)
 
@@ -352,13 +355,17 @@ src/main/java/com/moimlog/moimlog_backend/
 │ ├── JwtAuthenticationFilter.java # JWT 인증 필터 ✅
 │ ├── AwsConfig.java # AWS 설정 ✅
 │ ├── AwsS3Config.java # AWS S3 설정 ✅
-│ └── JwtConfig.java # JWT 설정 ✅
+│ ├── JwtConfig.java # JWT 설정 ✅
+│ ├── CustomAuthEntryPoint.java # 401 에러 핸들러 ✅
+│ └── CustomAccessDeniedHandler.java # 403 에러 핸들러 ✅
 ├── controller/ # REST API 컨트롤러 ✅
-│ └── AuthController.java # 인증 관련 API ✅
+│ ├── AuthController.java # 인증 관련 API ✅
+│ └── OAuth2Controller.java # OAuth2 소셜 로그인 API 🚧
 ├── service/ # 비즈니스 로직 ✅
 │ ├── UserService.java # 사용자 서비스 ✅
 │ ├── EmailService.java # 이메일 서비스 ✅
-│ └── S3Service.java # S3 파일 업로드 서비스 ✅
+│ ├── S3Service.java # S3 파일 업로드 서비스 ✅
+│ └── OAuth2Service.java # OAuth2 소셜 로그인 서비스 🚧
 ├── repository/ # 데이터 접근 계층 ✅
 │ ├── UserRepository.java # 사용자 리포지토리 ✅
 │ ├── EmailVerificationRepository.java # 이메일 인증 리포지토리 ✅
@@ -412,7 +419,7 @@ src/main/java/com/moimlog/moimlog_backend/
 
 - **CORS 설정** 필수 ✅
 - **JWT 토큰** 헤더에 포함 ✅
-- **파일 업로드** Base64 인코딩 및 MultipartFile 지원 ✅
+- **파일 업로드** Base64 인코딩 지원 ✅
 - **AWS S3** 이미지 URL 반환 ✅
 - **컨텍스트 패스** `/moimlog` 설정 ✅
 
@@ -424,6 +431,7 @@ src/main/java/com/moimlog/moimlog_backend/
 - **Rate Limiting** 적용 🚧
 - **JWT 토큰** 보안 강화 ✅
 - **공개 엔드포인트** JWT 필터 제외 ✅
+- **401/403 에러** JSON 응답 처리 ✅
 
 ### 성능 고려사항
 
@@ -465,7 +473,25 @@ src/main/java/com/moimlog/moimlog_backend/
 - ✅ Spring Security 설정
 - ✅ 전역 예외 처리
 - ✅ 컨텍스트 패스 설정
-- ✅ Railway MySQL 연동
+- ✅ AWS RDS MySQL 연동
+- ✅ OAuth2 소셜 로그인 (Google, Kakao, Naver)
+- ✅ 401/403 에러 JSON 응답 처리
+
+### 데이터베이스 설정 ✅
+
+```properties
+# AWS RDS MySQL 설정
+spring.datasource.url=jdbc:mysql://<endpoint>:<port>/<DB>?useSSL=true&requireSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+spring.datasource.username=name
+spring.datasource.password=password
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# JPA 설정
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+```
 
 ---
 

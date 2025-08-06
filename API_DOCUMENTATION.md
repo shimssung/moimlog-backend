@@ -5,6 +5,8 @@
 MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으로 합니다.
 
 **현재 구현 상태**: ✅ Phase 1 완료 (기본 인프라)
+**서버 URL**: `http://localhost:8080/moimlog`
+**데이터베이스**: AWS RDS MySQL
 
 ---
 
@@ -32,8 +34,8 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ```json
 {
   "success": true,
-  "message": "회원가입이 완료되었습니다.",
-  "userId": 1,
+  "message": "회원가입이 성공적으로 완료되었습니다.",
+  "id": 1,
   "email": "user@example.com",
   "name": "홍길동",
   "nickname": "길동이"
@@ -71,7 +73,7 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ### 3. 토큰 갱신
 
 - **URL**: `POST /auth/refresh`
-- **설명**: 액세스 토큰 갱신 (쿠키의 refreshToken 사용)
+- **설명**: 액세스 토큰 갱신 (HttpOnly 쿠키의 refreshToken 사용)
 - **요청 헤더**: 쿠키에서 refreshToken 자동 전송
 - **응답**:
 
@@ -355,6 +357,10 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 - **URL**: `GET /auth/moim-categories`
 - **설명**: 시스템에 등록된 모든 모임 카테고리 목록 조회
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  ```
 - **응답**:
 
 ```json
@@ -553,17 +559,17 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ### 컨텍스트 패스
 
 - 서버 컨텍스트 패스: `/moimlog`
-- 프론트엔드 요청 시: `http://localhost:8080/auth/...` (컨텍스트 패스 제외)
+- 프론트엔드 요청 시: `http://localhost:8080/moimlog/auth/...`
 
 ---
 
 ## 📝 참고사항
 
 1. **토큰 사용**: 인증이 필요한 API 호출 시 `Authorization: Bearer {accessToken}` 헤더 포함
-2. **이미지 업로드**: Base64 인코딩된 문자열 또는 MultipartFile 지원
+2. **이미지 업로드**: Base64 인코딩된 문자열 지원
 3. **모임 카테고리**: 10가지 기본 모임 카테고리 제공
 4. **온보딩**: 로그인 후 온보딩 완료 여부에 따라 리다이렉트 처리 필요
-5. **데이터베이스**: `user_interests` 테이블을 사용하여 사용자-카테고리 매핑 관리
+5. **데이터베이스**: `user_moim_categories` 테이블을 사용하여 사용자-카테고리 매핑 관리
 6. **보안**: JWT 필터에서 공개 엔드포인트는 인증 검증 건너뛰기
 
 ---

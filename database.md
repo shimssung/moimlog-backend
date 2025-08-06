@@ -21,21 +21,10 @@ CREATE TABLE users (
     is_verified BOOLEAN DEFAULT FALSE,
     last_login_at TIMESTAMP,
     is_onboarding_completed BOOLEAN DEFAULT FALSE,
+    oauth_provider VARCHAR(20),
+    oauth_provider_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-CREATE TABLE social_logins (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    provider ENUM('google', 'kakao', 'naver') NOT NULL,
-    provider_id VARCHAR(255) NOT NULL,
-    access_token VARCHAR(500),
-    refresh_token VARCHAR(500),
-    expires_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_provider_user (provider, provider_id)
 );
 
 CREATE TABLE roles (
@@ -416,6 +405,8 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_name ON users(name);
 CREATE INDEX idx_users_nickname ON users(nickname);
 CREATE INDEX idx_users_is_onboarding_completed ON users(is_onboarding_completed);
+CREATE INDEX idx_users_oauth_provider ON users(oauth_provider);
+CREATE INDEX idx_users_oauth_provider_id ON users(oauth_provider_id);
 CREATE INDEX idx_email_verifications_email ON email_verifications(email);
 CREATE INDEX idx_email_verifications_verification_code ON email_verifications(verification_code);
 CREATE INDEX idx_interests_name ON interests(name);
