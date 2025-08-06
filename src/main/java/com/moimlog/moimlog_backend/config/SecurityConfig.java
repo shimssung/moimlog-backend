@@ -25,6 +25,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Arrays;
 import java.time.Duration;
@@ -163,13 +166,32 @@ public class SecurityConfig {
                     if (authentication.getPrincipal() instanceof OAuth2User) {
                         OAuth2User oauth2User = (OAuth2User) authentication.getPrincipal();
                         
-                        // OAuth2Service를 통해 사용자 처리
-                        User user = oAuth2Service.processGoogleUser(oauth2User.getAttributes());
+                        // OAuth2 제공자에 따라 사용자 처리
+                        User user;
+                        String provider = getOAuth2Provider(request);
+                        
+                        switch (provider) {
+                            case "google":
+                                user = oAuth2Service.processGoogleUser(oauth2User.getAttributes());
+                                break;
+                            case "naver":
+                                user = oAuth2Service.processNaverUser(oauth2User.getAttributes());
+                                break;
+                            case "kakao":
+                                user = oAuth2Service.processKakaoUser(oauth2User.getAttributes());
+                                break;
+                            default:
+                                log.error("지원하지 않는 OAuth2 제공자: {}", provider);
+                                String errorRedirectUrl = "http://localhost:3000/oauth2-callback?error=unsupported_provider";
+                                response.sendRedirect(errorRedirectUrl);
+                                return;
+                        }
+                        
                         LoginResponse loginResponse = oAuth2Service.createLoginResponse(user);
                         
                         // 로그 추가
-                        log.info("OAuth2 로그인 성공 - 사용자: {}, 온보딩완료: {}", 
-                            user.getEmail(), user.getIsOnboardingCompleted());
+                        log.info("OAuth2 로그인 성공 - 제공자: {}, 사용자: {}, 온보딩완료: {}", 
+                            provider, user.getEmail(), user.getIsOnboardingCompleted());
                         
                         // Refresh Token만 HttpOnly 쿠키로 설정 (accessToken은 메모리에만 저장)
                         ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", loginResponse.getRefreshToken())
@@ -229,5 +251,23 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+    
+    /**
+     * OAuth2 제공자 식별
+     * 
+     * @param request HTTP 요청
+     * @return OAuth2 제공자 이름 (google, naver, kakao)
+     */
+    private String getOAuth2Provider(HttpServletRequest request) {
+        String requestURI = request.getRequestURI();
+        if (requestURI.contains("/login/oauth2/code/google")) {
+            return "google";
+        } else if (requestURI.contains("/login/oauth2/code/naver")) {
+            return "naver";
+        } else if (requestURI.contains("/login/oauth2/code/kakao")) {
+            return "kakao";
+        }
+        return "unknown";
     }
 } 
