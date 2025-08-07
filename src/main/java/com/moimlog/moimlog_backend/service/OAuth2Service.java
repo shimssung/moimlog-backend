@@ -122,6 +122,8 @@ public class OAuth2Service {
      * Kakao OAuth2 사용자 정보 처리
      */
     public User processKakaoUser(Map<String, Object> attributes) {
+        log.info("Kakao OAuth2 사용자 정보 처리 시작: {}", attributes);
+        
         String providerId = attributes.get("id").toString();
         
         @SuppressWarnings("unchecked")
@@ -131,6 +133,20 @@ public class OAuth2Service {
         
         String email = (String) kakaoAccount.get("email");
         String name = (String) profile.get("nickname");
+        
+        // 이메일이 없는 경우 providerId를 사용
+        if (email == null || email.isEmpty()) {
+            email = "kakao_" + providerId + "@kakao.com";
+            log.info("Kakao 사용자 이메일이 없어 providerId 기반 이메일 생성: {}", email);
+        }
+        
+        // 닉네임이 없는 경우 기본값 설정
+        if (name == null || name.isEmpty()) {
+            name = "카카오사용자";
+            log.info("Kakao 사용자 닉네임이 없어 기본값 설정: {}", name);
+        }
+        
+        log.info("Kakao OAuth2 사용자 정보 처리 완료 - providerId: {}, email: {}, name: {}", providerId, email, name);
         
         return processOAuth2User("kakao", providerId, email, name);
     }
