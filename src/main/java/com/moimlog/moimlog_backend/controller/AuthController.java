@@ -20,13 +20,18 @@ import com.moimlog.moimlog_backend.dto.response.VerifyResetCodeResponse;
 import com.moimlog.moimlog_backend.entity.MoimCategory;
 import com.moimlog.moimlog_backend.service.UserService;
 import com.moimlog.moimlog_backend.service.S3Service;
+import com.amazonaws.services.s3.AmazonS3;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +55,7 @@ public class AuthController {
     
     private final UserService userService;
     private final Optional<S3Service> s3Service;
+    private final AmazonS3 amazonS3;
     
     /**
      * 회원가입 API
@@ -405,6 +411,36 @@ public class AuthController {
         } else {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new ProfileImageUploadResponse(false, "S3 서비스가 비활성화되어 있습니다."));
+        }
+    }
+    
+    /**
+     * 프로필 이미지 프록시 - S3 이미지를 백엔드를 통해 제공
+     */
+    @GetMapping("/profile-image/{imageKey}")
+    public ResponseEntity<ByteArrayResource> getProfileImage(@PathVariable String imageKey) {
+        try {
+            // S3에서 이미지 다운로드
+            S3Object s3Object = amazonS3.getObject("moimlog-bucket", "profile-images/" + imageKey);
+            S3ObjectInputStream inputStream = s3Object.getObjectContent();
+            
+            // 이미지 데이터를 바이트 배열로 변환
+            byte[] imageData = inputStream.readAllBytes();
+            inputStream.close();
+            
+            // 응답 헤더 설정
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.IMAGE_JPEG); // 또는 적절한 이미지 타입
+            headers.setContentLength(imageData.length);
+            headers.setCacheControl("public, max-age=31536000"); // 1년 캐시
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(new ByteArrayResource(imageData));
+                    
+        } catch (Exception e) {
+            log.error("프로필 이미지 로드 실패: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
         }
     }
     

@@ -133,6 +133,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/reset-password").permitAll() // 비밀번호 재설정
                 .requestMatchers("/auth/check-nickname").permitAll() // 온보딩 중 닉네임 중복 체크
                 .requestMatchers("/auth/refresh").permitAll() // 토큰 갱신 (인증 불필요)
+                .requestMatchers("/auth/profile-image/**").permitAll() // 프로필 이미지 프록시 (인증 불필요)
                 .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 (개발용)
                 .requestMatchers("/error").permitAll()
                 

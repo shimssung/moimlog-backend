@@ -32,12 +32,15 @@ public class UserProfileResponse {
     private LocalDateTime createdAt;
     
     public static UserProfileResponse from(User user) {
+        // S3 URL을 프록시 URL로 변환
+        String proxyImageUrl = convertS3UrlToProxyUrl(user.getProfileImage());
+        
         return UserProfileResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .nickname(user.getNickname())
-                .profileImage(user.getProfileImage())
+                .profileImage(proxyImageUrl) // 프록시 URL 사용
                 .bio(user.getBio())
                 .phone(user.getPhone())
                 .birthDate(user.getBirthDate())
@@ -47,5 +50,23 @@ public class UserProfileResponse {
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
                 .build();
+    }
+    
+    /**
+     * S3 URL을 백엔드 프록시 URL로 변환
+     * @param s3Url S3 URL
+     * @return 프록시 URL 또는 null
+     */
+    private static String convertS3UrlToProxyUrl(String s3Url) {
+        if (s3Url == null || s3Url.isEmpty()) {
+            return null;
+        }
+        
+        // S3 URL에서 파일명 추출
+        String[] urlParts = s3Url.split("/");
+        String fileName = urlParts[urlParts.length - 1];
+        
+        // 백엔드 프록시 URL로 변환
+        return "http://localhost:8080/moimlog/auth/profile-image/" + fileName;
     }
 } 
