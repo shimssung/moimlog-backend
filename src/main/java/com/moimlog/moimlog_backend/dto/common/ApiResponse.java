@@ -1,6 +1,7 @@
 package com.moimlog.moimlog_backend.dto.common;
 
 import lombok.*;
+import java.util.List;
 
 /**
  * 공통 API 응답 DTO
@@ -18,6 +19,7 @@ public class ApiResponse<T> {
     private String message;
     private T data;
     private String errorCode;
+    private List<String> errors;
     
     public static <T> ApiResponse<T> success(T data) {
         return ApiResponse.<T>builder()

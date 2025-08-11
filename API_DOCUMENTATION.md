@@ -4,7 +4,7 @@
 
 MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으로 합니다.
 
-**현재 구현 상태**: ✅ Phase 1 완료 (기본 인프라)
+**현재 구현 상태**: ✅ Phase 1 완료 (기본 인프라), ✅ Phase 2 일부 완료 (모임 생성)
 **서버 URL**: `http://localhost:8080/moimlog`
 **데이터베이스**: AWS RDS MySQL
 
@@ -529,6 +529,7 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 ### AWS S3 이미지 업로드
 
 - 프로필 이미지는 AWS S3에 업로드
+- 모임 썸네일 이미지는 AWS S3에 업로드
 - Base64 인코딩된 이미지 지원
 - 업로드된 이미지 URL 반환
 
@@ -575,11 +576,167 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 
 ---
 
+## 🏠 모임 관련 API
+
+### 1. 모임 생성
+
+- **URL**: `POST /moims`
+- **설명**: 새로운 모임 생성
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  Content-Type: application/json
+  ```
+- **요청 본문**:
+
+```json
+{
+  "title": "축구 모임",
+  "description": "매주 토요일 축구하는 모임입니다.",
+  "categoryId": 1,
+  "maxMembers": 20,
+  "tags": ["축구", "운동", "토요일"],
+  "thumbnail": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...",
+  "isPrivate": false,
+  "onlineType": "offline",
+  "location": "전주시 평화동",
+  "locationDetail": "전주초등학교 운동장"
+}
+```
+
+- **응답**:
+
+```json
+{
+  "success": true,
+  "message": "모임이 성공적으로 생성되었습니다.",
+  "data": {
+    "id": 1,
+    "title": "축구 모임",
+    "description": "매주 토요일 축구하는 모임입니다.",
+    "categoryId": 1,
+    "category": {
+      "id": 1,
+      "name": "운동/스포츠",
+      "label": "운동/스포츠",
+      "color": "#FF6B6B"
+    },
+    "maxMembers": 20,
+    "currentMembers": 1,
+    "tags": ["축구", "운동", "토요일"],
+    "thumbnail": "https://moimlog-bucket.s3.ap-southeast-2.amazonaws.com/profile-images/...",
+    "isPrivate": false,
+    "onlineType": "offline",
+    "location": "전주시 평화동",
+    "locationDetail": "전주초등학교 운동장",
+    "createdBy": {
+      "id": 3,
+      "name": "사용자명",
+      "profileImage": "프로필이미지URL"
+    },
+    "createdAt": "2025-08-11T22:02:06.392",
+    "updatedAt": "2025-08-11T22:02:06.392"
+  }
+}
+```
+
+### 2. 모임 카테고리 목록 조회
+
+- **URL**: `GET /moims/categories`
+- **설명**: 모임 생성 시 선택할 수 있는 카테고리 목록 조회
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  ```
+- **응답**:
+
+```json
+{
+  "success": true,
+  "message": "모임 카테고리 조회 성공",
+  "data": [
+    {
+      "id": 1,
+      "name": "운동/스포츠",
+      "label": "운동/스포츠",
+      "color": "#FF6B6B"
+    },
+    {
+      "id": 2,
+      "name": "게임",
+      "label": "게임",
+      "color": "#4ECDC4"
+    },
+    {
+      "id": 3,
+      "name": "독서/학습",
+      "label": "독서/학습",
+      "color": "#45B7D1"
+    },
+    {
+      "id": 4,
+      "name": "음악",
+      "label": "음악",
+      "color": "#96CEB4"
+    },
+    {
+      "id": 5,
+      "name": "영화/드라마",
+      "label": "영화/드라마",
+      "color": "#FFEAA7"
+    },
+    {
+      "id": 6,
+      "name": "요리/베이킹",
+      "label": "요리/베이킹",
+      "color": "#DDA0DD"
+    },
+    {
+      "id": 7,
+      "name": "여행",
+      "label": "여행",
+      "color": "#98D8C8"
+    },
+    {
+      "id": 8,
+      "name": "프로그래밍/IT",
+      "label": "프로그래밍/IT",
+      "color": "#F7DC6F"
+    },
+    {
+      "id": 9,
+      "name": "예술/문화",
+      "label": "예술/문화",
+      "color": "#BB8FCE"
+    },
+    {
+      "id": 10,
+      "name": "기타",
+      "label": "기타",
+      "color": "#85C1E9"
+    }
+  ]
+}
+```
+
+### 3. 모임 API 헬스체크
+
+- **URL**: `GET /moims/health`
+- **설명**: 모임 API 서버 상태 확인
+- **응답**:
+
+```
+Moim API is running
+```
+
+---
+
 ## 🚧 향후 개발 예정 API
 
 ### 모임 관련 (Phase 2)
 
-- 모임 생성, 수정, 삭제, 조회
+- ✅ 모임 생성, 조회
+- 모임 수정, 삭제
 - 모임 가입, 탈퇴
 - 모임 멤버 관리
 
