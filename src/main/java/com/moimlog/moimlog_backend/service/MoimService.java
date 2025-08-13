@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 /**
  * 모임 관련 비즈니스 로직을 처리하는 서비스
@@ -217,5 +221,29 @@ public class MoimService {
     @Transactional(readOnly = true)
     public boolean isUserModeratorOrHigherOfMoim(Long moimId, Long userId) {
         return moimMemberRepository.isModeratorOrHigher(moimId, userId);
+    }
+    
+    /**
+     * 내가 만든 모임 목록 조회 (페이지네이션 지원)
+     */
+    @Transactional(readOnly = true)
+    public Page<Moim> getMyCreatedMoims(Long userId, int page, int size) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return moimRepository.findByCreatedBy(user, pageable);
+    }
+    
+    /**
+     * 내가 참여한 모임 목록 조회 (페이지네이션 지원)
+     */
+    @Transactional(readOnly = true)
+    public Page<MoimMember> getMyJoinedMoims(Long userId, int page, int size) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "joinedAt"));
+        return moimMemberRepository.findByUserId(user.getId(), pageable);
     }
 }

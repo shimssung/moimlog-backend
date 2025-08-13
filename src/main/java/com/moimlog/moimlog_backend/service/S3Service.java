@@ -64,4 +64,5 @@ public class S3Service {
             throw new IOException("이미지 업로드에 실패했습니다.", e);
         }
     }
+    
 } 

@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * 모임 멤버 데이터 접근을 위한 Repository 인터페이스
@@ -68,7 +70,12 @@ public interface MoimMemberRepository extends JpaRepository<MoimMember, Long> {
     void deleteByMoimIdAndUserId(Long moimId, Long userId);
     
     /**
-     * 모임의 모든 멤버 삭제
+     * 모임 ID로 모든 멤버 삭제
      */
     void deleteByMoimId(Long moimId);
+    
+    /**
+     * 사용자 ID로 모임 멤버십 조회 (페이지네이션 지원)
+     */
+    Page<MoimMember> findByUserId(Long userId, Pageable pageable);
 }

@@ -106,4 +106,9 @@ public interface MoimRepository extends JpaRepository<Moim, Long> {
      * 제목과 생성자로 모임 존재 여부 확인
      */
     boolean existsByTitleAndCreatedBy(String title, User createdBy);
+    
+    /**
+     * 생성자로 모임 목록 조회 (페이지네이션 지원)
+     */
+    Page<Moim> findByCreatedBy(User createdBy, Pageable pageable);
 }

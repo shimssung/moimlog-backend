@@ -445,6 +445,36 @@ public class AuthController {
     }
     
     /**
+     * 모임 썸네일 프록시 - S3 이미지를 백엔드를 통해 제공
+     */
+    @GetMapping("/moim-thumbnail/{imageKey}")
+    public ResponseEntity<ByteArrayResource> getMoimThumbnail(@PathVariable String imageKey) {
+        try {
+            // S3에서 이미지 다운로드 (profile-images 폴더에서 가져옴)
+            S3Object s3Object = amazonS3.getObject("moimlog-bucket", "profile-images/" + imageKey);
+            S3ObjectInputStream inputStream = s3Object.getObjectContent();
+            
+            // 이미지 데이터를 바이트 배열로 변환
+            byte[] imageData = inputStream.readAllBytes();
+            inputStream.close();
+            
+            // 응답 헤더 설정
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.IMAGE_JPEG); // 또는 적절한 이미지 타입
+            headers.setContentLength(imageData.length);
+            headers.setCacheControl("public, max-age=31536000"); // 1년 캐시
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(new ByteArrayResource(imageData));
+                    
+        } catch (Exception e) {
+            log.error("모임 썸네일 로드 실패: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
+    /**
      * 이메일 중복 확인 응답 DTO
      * 직접 반환 시 비밀번호 노출 위험 있음
      * 따라서 이메일 중복 확인 응답 DTO를 별도로 생성하여 반환
