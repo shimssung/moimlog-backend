@@ -495,7 +495,44 @@ MoimLog 백엔드 API 문서입니다. 모든 API는 `/auth` 경로를 기본으
 }
 ```
 
-### 2. 프로필 이미지 업로드
+### 2. 알림 설정 업데이트
+
+- **URL**: `PUT /auth/notification-settings`
+- **설명**: 사용자 알림 설정 업데이트
+- **요청 헤더**:
+  ```
+  Authorization: Bearer {accessToken}
+  Content-Type: application/json
+  ```
+- **요청 본문**:
+
+```json
+{
+  "notificationEmail": true,
+  "notificationPush": true,
+  "notificationSchedule": true,
+  "notificationComment": true
+}
+```
+
+- **응답**:
+
+```json
+{
+  "success": true,
+  "message": "알림 설정이 저장되었습니다.",
+  "data": {
+    "userId": 1,
+    "notificationEmail": true,
+    "notificationPush": true,
+    "notificationSchedule": true,
+    "notificationComment": true,
+    "updatedAt": "2025-01-15T10:30:00"
+  }
+}
+```
+
+### 3. 프로필 이미지 업로드
 
 - **URL**: `POST /auth/upload-profile-image`
 - **설명**: 프로필 이미지 파일 업로드

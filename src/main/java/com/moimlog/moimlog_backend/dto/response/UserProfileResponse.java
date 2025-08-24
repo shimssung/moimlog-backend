@@ -30,6 +30,11 @@ public class UserProfileResponse {
     private boolean isOnboardingCompleted;
     private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;
+
+    private Boolean notificationEmail;
+    private Boolean notificationPush;
+    private Boolean notificationSchedule;
+    private Boolean notificationComment;
     
     public static UserProfileResponse from(User user) {
         // S3 URL을 프록시 URL로 변환
@@ -49,6 +54,11 @@ public class UserProfileResponse {
                 .isOnboardingCompleted(user.getIsOnboardingCompleted())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
+
+                .notificationEmail(user.getNotificationEmail())
+                .notificationPush(user.getNotificationPush())
+                .notificationSchedule(user.getNotificationSchedule())
+                .notificationComment(user.getNotificationComment())
                 .build();
     }
     

@@ -3,6 +3,7 @@ package com.moimlog.moimlog_backend.dto.request;
 import com.moimlog.moimlog_backend.entity.User;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -36,5 +37,8 @@ public class UpdateProfileRequest {
     
     private LocalDate birthDate;
     
-    private User.Gender gender;
+    @Pattern(regexp = "^(MALE|FEMALE|)$", message = "성별은 MALE, FEMALE 중 하나이거나 비워둘 수 있습니다.")
+    private String gender;
+    
+
 } 

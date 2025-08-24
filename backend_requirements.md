@@ -50,13 +50,17 @@ Frontend (Next.js) ←→ Backend (Spring Boot) ←→ Database (MySQL - AWS RDS
   "bio": "자기소개",
   "phone": "010-1234-5678",
   "birthDate": "1990-01-01",
-  "gender": "MALE|FEMALE|OTHER",
+  "gender": "MALE|FEMALE",
   "isActive": true,
   "isVerified": false,
   "isOnboardingCompleted": true,
   "lastLoginAt": "2025-07-01T10:30:00",
   "oauthProvider": "GOOGLE|KAKAO|NAVER",
   "oauthProviderId": "oauth_provider_user_id",
+  "notificationEmail": true,
+  "notificationPush": true,
+  "notificationSchedule": true,
+  "notificationComment": true,
   "createdAt": "2025-06-01T00:00:00",
   "updatedAt": "2025-07-01T10:30:00"
 }
@@ -173,6 +177,7 @@ POST   /auth/refresh                   # 토큰 갱신 ✅
 POST   /auth/logout                    # 로그아웃 ✅
 GET    /auth/me                        # 내 정보 조회 ✅
 PUT    /auth/profile                   # 프로필 수정 ✅
+PUT    /auth/notification-settings     # 알림 설정 업데이트 ✅
 GET    /auth/check-email              # 이메일 중복 확인 ✅
 POST   /auth/send-verification        # 이메일 인증 코드 발송 ✅
 POST   /auth/verify-email             # 이메일 인증 코드 검증 ✅
@@ -455,7 +460,7 @@ src/main/java/com/moimlog/moimlog_backend/
 
 ### 데이터베이스 구조 ✅
 
-- **users**: 사용자 기본 정보 ✅
+- **users**: 사용자 기본 정보 및 알림 설정 ✅
 - **email_verifications**: 이메일 인증 정보 ✅
 - **interests**: 관심사 정보 ✅
 - **user_interests**: 사용자-관심사 매핑 ✅
@@ -474,6 +479,7 @@ src/main/java/com/moimlog/moimlog_backend/
 - ✅ 관심사 관리 시스템
 - ✅ AWS S3 파일 업로드
 - ✅ 프로필 관리
+- ✅ 알림 설정 관리
 - ✅ Spring Security 설정
 - ✅ 전역 예외 처리
 - ✅ 컨텍스트 패스 설정

@@ -9,6 +9,8 @@ import com.moimlog.moimlog_backend.dto.request.OnboardingRequest;
 import com.moimlog.moimlog_backend.dto.request.ForgotPasswordRequest;
 import com.moimlog.moimlog_backend.dto.request.ResetPasswordRequest;
 import com.moimlog.moimlog_backend.dto.request.VerifyResetCodeRequest;
+
+import com.moimlog.moimlog_backend.dto.request.NotificationSettingsRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
@@ -17,6 +19,7 @@ import com.moimlog.moimlog_backend.dto.response.OnboardingResponse;
 import com.moimlog.moimlog_backend.dto.response.ForgotPasswordResponse;
 import com.moimlog.moimlog_backend.dto.response.ResetPasswordResponse;
 import com.moimlog.moimlog_backend.dto.response.VerifyResetCodeResponse;
+
 import com.moimlog.moimlog_backend.entity.MoimCategory;
 import com.moimlog.moimlog_backend.service.UserService;
 import com.moimlog.moimlog_backend.service.S3Service;
@@ -274,6 +277,33 @@ public class AuthController {
         return ResponseEntity.ok()
                 .body(new OnboardingStatusResponse(isCompleted));
     }
+    
+
+    
+    /**
+     * 알림 설정 업데이트 API
+     * @param request 알림 설정 요청
+     * @return 알림 설정 업데이트 결과
+     */
+    @PutMapping("/notification-settings")
+    public ResponseEntity<Map<String, Object>> updateNotificationSettings(@RequestBody NotificationSettingsRequest request) {
+        log.info("알림 설정 업데이트 API 호출");
+        
+        try {
+            Map<String, Object> result = userService.updateNotificationSettings(request);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("알림 설정 업데이트 실패: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest()
+                .body(Map.of(
+                    "success", false,
+                    "message", "알림 설정 업데이트에 실패했습니다.",
+                    "error", e.getMessage()
+                ));
+        }
+    }
+    
+
     
     /**
      * 사용자 모임 카테고리 목록 조회 API

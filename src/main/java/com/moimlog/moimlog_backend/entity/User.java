@@ -84,6 +84,30 @@ public class User implements UserDetails {
     @Column(name = "oauth_provider_id", length = 255)
     private String oauthProviderId;
     
+    @Column(name = "profile_visibility", length = 20)
+    @Builder.Default
+    private String profileVisibility = "public";
+    
+    @Column(name = "email_visibility", length = 20)
+    @Builder.Default
+    private String emailVisibility = "private";
+    
+    @Column(name = "notification_email")
+    @Builder.Default
+    private Boolean notificationEmail = true;
+    
+    @Column(name = "notification_push")
+    @Builder.Default
+    private Boolean notificationPush = true;
+    
+    @Column(name = "notification_schedule")
+    @Builder.Default
+    private Boolean notificationSchedule = true;
+    
+    @Column(name = "notification_comment")
+    @Builder.Default
+    private Boolean notificationComment = true;
+    
     // Spring Security UserDetails 구현
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -173,6 +197,6 @@ public class User implements UserDetails {
     
     // 성별 enum
     public enum Gender {
-        MALE, FEMALE, OTHER
+        MALE, FEMALE
     }
 } 

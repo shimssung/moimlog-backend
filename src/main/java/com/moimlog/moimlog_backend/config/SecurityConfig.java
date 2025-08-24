@@ -151,7 +151,8 @@ public class SecurityConfig {
                 .requestMatchers("/auth/moim-categories").authenticated()
                 .requestMatchers("/auth/logout").authenticated()
                 .requestMatchers("/auth/upload-profile-image").authenticated()
-                
+                .requestMatchers("/auth/notification-settings").authenticated()
+            
                 // 관리자 API
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 

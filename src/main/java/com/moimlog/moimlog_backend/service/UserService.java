@@ -8,6 +8,8 @@ import com.moimlog.moimlog_backend.dto.request.OnboardingRequest;
 import com.moimlog.moimlog_backend.dto.request.ForgotPasswordRequest;
 import com.moimlog.moimlog_backend.dto.request.ResetPasswordRequest;
 import com.moimlog.moimlog_backend.dto.request.VerifyResetCodeRequest;
+
+import com.moimlog.moimlog_backend.dto.request.NotificationSettingsRequest;
 import com.moimlog.moimlog_backend.dto.response.LoginResponse;
 import com.moimlog.moimlog_backend.dto.response.SignupResponse;
 import com.moimlog.moimlog_backend.dto.response.EmailVerificationResponse;
@@ -16,6 +18,7 @@ import com.moimlog.moimlog_backend.dto.response.OnboardingResponse;
 import com.moimlog.moimlog_backend.dto.response.ForgotPasswordResponse;
 import com.moimlog.moimlog_backend.dto.response.ResetPasswordResponse;
 import com.moimlog.moimlog_backend.dto.response.VerifyResetCodeResponse;
+
 import com.moimlog.moimlog_backend.entity.User;
 import com.moimlog.moimlog_backend.entity.EmailVerification;
 import com.moimlog.moimlog_backend.entity.MoimCategory;
@@ -34,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Random;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 사용자 서비스 클래스
@@ -309,9 +314,16 @@ public class UserService {
         if (request.getBirthDate() != null) {
             user.setBirthDate(request.getBirthDate());
         }
-        if (request.getGender() != null) {
-            user.setGender(request.getGender());
+        if (request.getGender() != null && !request.getGender().trim().isEmpty()) {
+            try {
+                User.Gender gender = User.Gender.valueOf(request.getGender().toUpperCase());
+                user.setGender(gender);
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 성별 값: {}", request.getGender());
+                // 잘못된 값은 무시하고 기존 값 유지
+            }
         }
+
         
         User updatedUser = userRepository.save(user);
         return UserProfileResponse.from(updatedUser);
@@ -653,4 +665,59 @@ public class UserService {
         }
         return code.toString();
     }
+    
+
+    
+    /**
+     * 알림 설정 업데이트
+     * @param request 알림 설정 요청
+     * @return 처리 결과
+     */
+    @Transactional
+    public Map<String, Object> updateNotificationSettings(NotificationSettingsRequest request) {
+        try {
+            // 현재 인증된 사용자 정보 가져오기
+            String currentUserEmail = getCurrentUserEmail();
+            User user = userRepository.findByEmail(currentUserEmail)
+                    .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+            
+            // 알림 설정 업데이트
+            if (request.getNotificationEmail() != null) {
+                user.setNotificationEmail(request.getNotificationEmail());
+            }
+            if (request.getNotificationPush() != null) {
+                user.setNotificationPush(request.getNotificationPush());
+            }
+            if (request.getNotificationSchedule() != null) {
+                user.setNotificationSchedule(request.getNotificationSchedule());
+            }
+            if (request.getNotificationComment() != null) {
+                user.setNotificationComment(request.getNotificationComment());
+            }
+            
+            userRepository.save(user);
+            
+            log.info("알림 설정 업데이트 완료: {}", currentUserEmail);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "알림 설정이 저장되었습니다.");
+            result.put("data", Map.of(
+                "userId", user.getId(),
+                "notificationEmail", user.getNotificationEmail(),
+                "notificationPush", user.getNotificationPush(),
+                "notificationSchedule", user.getNotificationSchedule(),
+                "notificationComment", user.getNotificationComment(),
+                "updatedAt", user.getUpdatedAt()
+            ));
+            
+            return result;
+            
+        } catch (Exception e) {
+            log.error("알림 설정 업데이트 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("알림 설정 업데이트 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+    
+
 } 

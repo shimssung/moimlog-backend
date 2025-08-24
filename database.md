@@ -4,6 +4,10 @@
 -- ========================================
 -- MoimLog 전체 스키마 (AUTO_INCREMENT)
 -- ========================================
+--
+-- 📅 최종 업데이트: 2024년 1월
+-- ✨ 추가된 기능: 프로필 수정, 알림 설정
+-- 🔧 구현 완료: 모든 프로필 관련 API 및 데이터베이스 스키마
 
 -- 1️⃣ 사용자 관련 테이블
 CREATE TABLE users (
@@ -16,13 +20,19 @@ CREATE TABLE users (
     bio TEXT,
     phone VARCHAR(20),
     birth_date DATE,
-    gender ENUM('MALE', 'FEMALE', 'OTHER'),
+    gender ENUM('MALE', 'FEMALE'),
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
     last_login_at TIMESTAMP,
     is_onboarding_completed BOOLEAN DEFAULT FALSE,
     oauth_provider VARCHAR(20),
     oauth_provider_id VARCHAR(255),
+
+    -- 알림 설정 (2024년 1월 추가)
+    notification_email BOOLEAN DEFAULT TRUE,
+    notification_push BOOLEAN DEFAULT TRUE,
+    notification_schedule BOOLEAN DEFAULT TRUE,
+    notification_comment BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -366,6 +376,20 @@ CREATE TABLE admin_actions (
 -- ========================================
 -- 기본 데이터 삽입
 -- ========================================
+--
+-- 🗃️ 초기 데이터 및 마이그레이션 가이드
+-- 📋 기존 데이터베이스 업그레이드 방법 포함
+
+-- 사용자 설정 기본값 설정 (2024년 1월 추가)
+-- 기존 사용자 데이터에 대한 기본값 설정을 위한 SQL
+--
+-- 🚨 주의: 기존 데이터베이스에 새로운 컬럼을 추가할 때는 다음 SQL을 실행하세요
+-- ALTER TABLE users ADD COLUMN notification_email BOOLEAN DEFAULT TRUE;
+-- ALTER TABLE users ADD COLUMN notification_push BOOLEAN DEFAULT TRUE;
+-- ALTER TABLE users ADD COLUMN notification_schedule BOOLEAN DEFAULT TRUE;
+-- ALTER TABLE users ADD COLUMN notification_comment BOOLEAN DEFAULT TRUE;
+--
+-- 📋 마이그레이션 스크립트: database_migration.sql 파일 참조
 
 -- 모임 카테고리 데이터 (10개)
 INSERT INTO moim_categories (name, label, description, color) VALUES
@@ -402,12 +426,26 @@ INSERT INTO roles (name, description) VALUES
 -- ========================================
 -- 인덱스
 -- ========================================
+--
+-- 📊 성능 최적화를 위한 인덱스 설정
+-- 🔍 프로필 및 알림 설정 관련 인덱스 포함
+
+-- 사용자 테이블 인덱스
+-- 기본 인덱스
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_name ON users(name);
 CREATE INDEX idx_users_nickname ON users(nickname);
 CREATE INDEX idx_users_is_onboarding_completed ON users(is_onboarding_completed);
 CREATE INDEX idx_users_oauth_provider ON users(oauth_provider);
 CREATE INDEX idx_users_oauth_provider_id ON users(oauth_provider_id);
+
+-- 알림 설정 관련 인덱스 (2024년 1월 추가)
+CREATE INDEX idx_users_notification_email ON users(notification_email);
+CREATE INDEX idx_users_notification_push ON users(notification_push);
+CREATE INDEX idx_users_notification_schedule ON users(notification_schedule);
+CREATE INDEX idx_users_notification_comment ON users(notification_comment);
+
+-- 기타 테이블 인덱스
 CREATE INDEX idx_email_verifications_email ON email_verifications(email);
 CREATE INDEX idx_email_verifications_verification_code ON email_verifications(verification_code);
 CREATE INDEX idx_interests_name ON interests(name);
@@ -441,6 +479,35 @@ CREATE INDEX idx_user_activity_logs_created_at ON user_activity_logs(created_at)
 -- ========================================
 -- 뷰
 -- ========================================
+--
+-- 👁️ 데이터 조회를 위한 뷰 정의
+-- 🆕 user_profile_details 뷰 추가 (2024년 1월)
+
+-- 사용자 프로필 상세 정보 뷰 (2024년 1월 추가)
+-- ✨ 프로필 수정, 알림 설정 기능을 위한 통합 뷰
+CREATE VIEW user_profile_details AS
+SELECT
+    u.id,
+    u.email,
+    u.name,
+    u.nickname,
+    u.profile_image,
+    u.bio,
+    u.phone,
+    u.birth_date,
+    u.gender,
+    u.is_verified,
+    u.is_onboarding_completed,
+    u.last_login_at,
+    u.created_at,
+    u.updated_at,
+
+    u.notification_email,
+    u.notification_push,
+    u.notification_schedule,
+    u.notification_comment
+FROM users u;
+
 CREATE VIEW moim_details AS
 SELECT
     m.*,
