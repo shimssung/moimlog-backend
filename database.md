@@ -40,15 +40,13 @@ CREATE TABLE users (
 CREATE TABLE roles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name ENUM('ADMIN', 'USER', 'MODERATOR') NOT NULL UNIQUE,
-    description VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    description VARCHAR(100)
 );
 
 CREATE TABLE user_roles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
     UNIQUE KEY unique_user_role (user_id, role_id)
@@ -136,11 +134,15 @@ CREATE TABLE moim_members (
     moim_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
     role ENUM('ADMIN', 'MODERATOR', 'MEMBER') DEFAULT 'MEMBER',
-    status ENUM('ACTIVE', 'PENDING', 'BANNED') DEFAULT 'ACTIVE',
+    status ENUM('ACTIVE', 'PENDING', 'BANNED') DEFAULT 'PENDING',  -- 기본값을 PENDING으로 변경
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMP,
+    join_message TEXT,  -- 참여 신청 메시지
+    approved_by BIGINT,  -- 승인한 운영자 ID
+    approved_at TIMESTAMP,  -- 승인 시간
     FOREIGN KEY (moim_id) REFERENCES moims(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE KEY unique_moim_user (moim_id, user_id)
 );
 
@@ -149,10 +151,12 @@ CREATE TABLE moim_settings (
     moim_id BIGINT NOT NULL,
     allow_anonymous_posts BOOLEAN DEFAULT FALSE,
     require_approval_for_posts BOOLEAN DEFAULT FALSE,
+    require_approval_for_join BOOLEAN DEFAULT TRUE,  -- 모임 참여 승인 필요 여부 (항상 TRUE)
     notification_new_message BOOLEAN DEFAULT TRUE,
     notification_new_post BOOLEAN DEFAULT TRUE,
     notification_new_event BOOLEAN DEFAULT TRUE,
     notification_member_join BOOLEAN DEFAULT TRUE,
+    notification_join_request BOOLEAN DEFAULT TRUE,  -- 참여 신청 알림
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (moim_id) REFERENCES moims(id) ON DELETE CASCADE,
@@ -167,6 +171,23 @@ CREATE TABLE user_favorites (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (moim_id) REFERENCES moims(id) ON DELETE CASCADE,
     UNIQUE KEY unique_user_moim (user_id, moim_id)
+);
+
+-- 모임 참여 신청 관리 테이블 (2024년 1월 추가)
+CREATE TABLE moim_join_requests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    moim_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    message TEXT,  -- 참여 신청 메시지
+    status ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP,
+    processed_by BIGINT,  -- 처리한 운영자 ID
+    reject_reason TEXT,  -- 거절 사유
+    FOREIGN KEY (moim_id) REFERENCES moims(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (processed_by) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE KEY unique_moim_user_request (moim_id, user_id)
 );
 
 -- 8️⃣ 게시판 관련
@@ -423,6 +444,10 @@ INSERT INTO roles (name, description) VALUES
 ('USER', '일반 사용자'),
 ('MODERATOR', '모임 운영자');
 
+-- 모임 설정 기본값 (2024년 1월 추가)
+-- 참고: 실제 모임 생성 시 이 설정들이 적용됩니다
+-- require_approval_for_join: TRUE (기본값, 항상 승인 필요)
+
 -- ========================================
 -- 인덱스
 -- ========================================
@@ -460,6 +485,10 @@ CREATE INDEX idx_moims_category_id ON moims(category_id);
 CREATE INDEX idx_moims_created_by ON moims(created_by);
 CREATE INDEX idx_moims_online_type ON moims(online_type);
 CREATE INDEX idx_moims_is_active ON moims(is_active);
+CREATE INDEX idx_moim_members_status ON moim_members(status);
+CREATE INDEX idx_moim_members_approved_by ON moim_members(approved_by);
+CREATE INDEX idx_moim_join_requests_status ON moim_join_requests(status);
+CREATE INDEX idx_moim_join_requests_processed_by ON moim_join_requests(processed_by);
 CREATE INDEX idx_posts_moim_id ON posts(moim_id);
 CREATE INDEX idx_posts_author_id ON posts(author_id);
 CREATE INDEX idx_posts_type ON posts(type);
@@ -549,9 +578,28 @@ SELECT
     u.name,
     u.email,
     u.profile_image,
-    u.last_login_at
+    u.last_login_at,
+    CASE 
+        WHEN mm.status = 'PENDING' THEN '승인 대기'
+        WHEN mm.status = 'ACTIVE' THEN '활성 멤버'
+        WHEN mm.status = 'BANNED' THEN '차단됨'
+    END as status_label
 FROM moim_members mm
 JOIN users u ON mm.user_id = u.id;
+
+-- 모임 참여 신청 상세 뷰 (2024년 1월 추가)
+CREATE VIEW moim_join_request_details AS
+SELECT
+    mjr.*,
+    u.name as user_name,
+    u.email as user_email,
+    u.profile_image as user_image,
+    m.title as moim_title,
+    admin.name as admin_name
+FROM moim_join_requests mjr
+JOIN users u ON mjr.user_id = u.id
+JOIN moims m ON mjr.moim_id = m.id
+LEFT JOIN users admin ON mjr.processed_by = admin.id;
 
 CREATE VIEW post_details AS
 SELECT
