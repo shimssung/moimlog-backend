@@ -46,6 +46,13 @@ public class MoimMember {
     @Column(name = "last_active_at")
     private LocalDateTime lastActiveAt;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+    
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+    
     // 역할 enum
     public enum Role {
         ADMIN, MODERATOR, MEMBER

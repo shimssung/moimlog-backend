@@ -78,4 +78,9 @@ public interface MoimMemberRepository extends JpaRepository<MoimMember, Long> {
      * 사용자 ID로 모임 멤버십 조회 (페이지네이션 지원)
      */
     Page<MoimMember> findByUserId(Long userId, Pageable pageable);
+    
+    /**
+     * 모임 ID로 멤버 목록 조회 (역할 순, 가입일 순)
+     */
+    List<MoimMember> findByMoimIdOrderByRoleAscJoinedAtAsc(Long moimId);
 }

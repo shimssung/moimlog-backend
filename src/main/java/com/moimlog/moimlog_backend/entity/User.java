@@ -84,13 +84,7 @@ public class User implements UserDetails {
     @Column(name = "oauth_provider_id", length = 255)
     private String oauthProviderId;
     
-    @Column(name = "profile_visibility", length = 20)
-    @Builder.Default
-    private String profileVisibility = "public";
-    
-    @Column(name = "email_visibility", length = 20)
-    @Builder.Default
-    private String emailVisibility = "private";
+
     
     @Column(name = "notification_email")
     @Builder.Default

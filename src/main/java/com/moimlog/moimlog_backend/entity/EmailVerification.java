@@ -29,6 +29,7 @@ public class EmailVerification {
     private String verificationCode;
     
     @Column(name = "is_verified", nullable = false)
+    @Builder.Default
     private Boolean isVerified = false;
     
     @Column(name = "expires_at", nullable = false)

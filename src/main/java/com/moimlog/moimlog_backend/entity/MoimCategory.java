@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 모임 카테고리 엔티티 클래스
@@ -40,6 +42,11 @@ public class MoimCategory {
     
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+    
+    // 연관관계 매핑
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Moim> moims = new ArrayList<>();
     
     // JPA 생명주기 메서드
     @PrePersist

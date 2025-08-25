@@ -3,6 +3,7 @@ package com.moimlog.moimlog_backend.repository;
 import com.moimlog.moimlog_backend.entity.MoimCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -21,4 +22,10 @@ public interface MoimCategoryRepository extends JpaRepository<MoimCategory, Long
      */
     @Query("SELECT mc FROM MoimCategory mc ORDER BY mc.name")
     List<MoimCategory> findAllOrderByName();
+    
+    /**
+     * 활성 카테고리 조회 (모임 수 포함)
+     */
+    @Query("SELECT mc FROM MoimCategory mc WHERE mc.isActive = true ORDER BY mc.name")
+    List<MoimCategory> findActiveCategoriesWithMoimCount();
 } 
