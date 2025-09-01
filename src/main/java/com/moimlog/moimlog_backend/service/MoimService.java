@@ -549,7 +549,7 @@ public class MoimService {
         response.put("onlineType", moim.getOnlineType());
         response.put("location", moim.getLocation());
         response.put("locationDetail", moim.getLocationDetail());
-        response.put("createdBy", moim.getCreatedBy().getId());
+        response.put("createdBy", moim.getCreatedBy().getNickname() != null ? moim.getCreatedBy().getNickname() : moim.getCreatedBy().getName());
         response.put("creatorName", moim.getCreatedBy().getName());
         response.put("creatorProfileImage", moim.getCreatedBy().getProfileImage());
         response.put("createdAt", moim.getCreatedAt());

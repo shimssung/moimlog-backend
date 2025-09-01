@@ -495,6 +495,9 @@ public class MoimController {
         response.put("location", moim.getLocation());
         response.put("location_detail", moim.getLocationDetail());
         response.put("tags", moim.getTags());
+        response.put("created_by", moim.getCreatedBy().getNickname() != null ? moim.getCreatedBy().getNickname() : moim.getCreatedBy().getName());
+        response.put("creator_name", moim.getCreatedBy().getName());
+        response.put("creator_profile_image", convertProfileImageToProxyUrl(moim.getCreatedBy().getProfileImage()));
         response.put("created_at", moim.getCreatedAt());
         response.put("updated_at", moim.getUpdatedAt());
         
@@ -502,7 +505,7 @@ public class MoimController {
     }
     
     /**
-     * S3 URL을 백엔드 프록시 URL로 변환
+     * S3 URL을 백엔드 프록시 URL로 변환 (모임 썸네일용)
      * @param s3Url S3 URL
      * @return 프록시 URL 또는 null
      */
@@ -523,6 +526,32 @@ public class MoimController {
         // 백엔드 프록시 URL로 변환 (모임 썸네일용)
         String proxyUrl = "http://localhost:8080/moimlog/auth/moim-thumbnail/" + fileName;
         log.info("생성된 프록시 URL: {}", proxyUrl);
+        
+        return proxyUrl;
+    }
+    
+    /**
+     * S3 URL을 백엔드 프록시 URL로 변환 (사용자 프로필 이미지용)
+     * @param s3Url S3 URL
+     * @return 프록시 URL 또는 null
+     */
+    private String convertProfileImageToProxyUrl(String s3Url) {
+        if (s3Url == null || s3Url.isEmpty()) {
+            return null;
+        }
+        
+        // 디버깅을 위한 로그 추가
+        log.info("원본 프로필 이미지 S3 URL: {}", s3Url);
+        
+        // S3 URL에서 파일명 추출
+        String[] urlParts = s3Url.split("/");
+        String fileName = urlParts[urlParts.length - 1];
+        
+        log.info("추출된 프로필 이미지 파일명: {}", fileName);
+        
+        // 백엔드 프록시 URL로 변환 (사용자 프로필 이미지용)
+        String proxyUrl = "http://localhost:8080/moimlog/auth/profile-image/" + fileName;
+        log.info("생성된 프로필 이미지 프록시 URL: {}", proxyUrl);
         
         return proxyUrl;
     }
@@ -551,6 +580,9 @@ public class MoimController {
         response.put("location", moim.getLocation());
         response.put("location_detail", moim.getLocationDetail());
         response.put("tags", moim.getTags());
+        response.put("created_by", moim.getCreatedBy().getNickname() != null ? moim.getCreatedBy().getNickname() : moim.getCreatedBy().getName());
+        response.put("creator_name", moim.getCreatedBy().getName());
+        response.put("creator_profile_image", convertProfileImageToProxyUrl(moim.getCreatedBy().getProfileImage()));
         response.put("role", member.getRole());
         response.put("status", member.getStatus());
         response.put("joined_at", member.getJoinedAt());
@@ -569,9 +601,14 @@ public class MoimController {
             moimResponse.put("thumbnail", convertS3UrlToProxyUrl((String) moimResponse.get("thumbnail")));
         }
         
-        // 생성자 프로필 이미지 URL 변환
+        // 생성자 프로필 이미지 URL 변환 (기존 필드명)
         if (moimResponse.containsKey("creatorProfileImage")) {
-            moimResponse.put("creatorProfileImage", convertS3UrlToProxyUrl((String) moimResponse.get("creatorProfileImage")));
+            moimResponse.put("creatorProfileImage", convertProfileImageToProxyUrl((String) moimResponse.get("creatorProfileImage")));
+        }
+        
+        // 생성자 프로필 이미지 URL 변환 (새로운 필드명)
+        if (moimResponse.containsKey("creator_profile_image")) {
+            moimResponse.put("creator_profile_image", convertProfileImageToProxyUrl((String) moimResponse.get("creator_profile_image")));
         }
     }
     
@@ -616,9 +653,9 @@ public class MoimController {
             response.put("onlineType", moim.getOnlineType());
             response.put("location", moim.getLocation());
             response.put("locationDetail", moim.getLocationDetail());
-            response.put("createdBy", moim.getCreatedBy().getId());
+            response.put("createdBy", moim.getCreatedBy().getNickname() != null ? moim.getCreatedBy().getNickname() : moim.getCreatedBy().getName());
             response.put("creatorName", moim.getCreatedBy().getName());
-            response.put("creatorProfileImage", convertS3UrlToProxyUrl(moim.getCreatedBy().getProfileImage()));
+            response.put("creatorProfileImage", convertProfileImageToProxyUrl(moim.getCreatedBy().getProfileImage()));
             response.put("createdAt", moim.getCreatedAt());
             response.put("updatedAt", moim.getUpdatedAt());
             response.put("isMember", member != null);
